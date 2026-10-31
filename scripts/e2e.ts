@@ -1,49 +1,13 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import Papa from "papaparse";
-import { adminClient, loadEnv, ROOT, runScript } from "./lib/run";
-import { demoCookie } from "./lib/session";
-
-const BASE = process.env.E2E_BASE_URL ?? "http://localhost:3000";
-let failures = 0;
-export function check(label: string, ok: boolean, detail = "") {
-  console.log(`${ok ? "✔" : "✖"} ${label}${detail ? `: ${detail}` : ""}`);
-  if (!ok) failures += 1;
-}
-
-const cookies = new Map<string, string>();
-async function as(handle: string) {
-  if (!cookies.has(handle)) cookies.set(handle, await demoCookie(handle));
-  return cookies.get(handle)!;
-}
-
-async function call(handle: string | null, path: string, body?: unknown, method?: string): Promise<{ status: number; json: any; text: string; type: string }> { // eslint-disable-line @typescript-eslint/no-explicit-any
-  const headers: Record<string, string> = {};
-  if (handle) headers.cookie = await as(handle);
-  if (body !== undefined) headers["content-type"] = "application/json";
-  const res = await fetch(`${BASE}${path}`, { method: method ?? (body !== undefined ? "POST" : "GET"), headers, body: body !== undefined ? JSON.stringify(body) : undefined, redirect: "manual" });
-  const type = res.headers.get("content-type") ?? "";
-  const text = type.includes("json") || type.includes("html") || type.includes("csv") ? await res.text() : "";
-  let json: unknown = null;
-  try { json = JSON.parse(text); } catch { /* not JSON */ }
-  return { status: res.status, json, text, type };
-}
-
-const csvRows = (file: string) => Papa.parse<Record<string, string>>(readFileSync(join(ROOT, "demo-files", file), "utf8"), { header: true, skipEmptyLines: "greedy" }).data;
-
-async function pages(handle: string | null, paths: string[]) {
-  for (const path of paths) {
-    const r = await call(handle, path);
-    const crashed = /Application error|Internal Server Error/.test(r.text);
-    check(`${handle ?? "public"} GET ${path}`, r.status === 200 && !crashed, r.status === 200 ? "" : `status ${r.status}`);
-  }
-}
+import { adminClient, loadEnv, runScript } from "./lib/run";
+import { call, check, csvRows, pages, state } from "./e2e/helpers";
+import { verification } from "./e2e/verification";
 
 async function upload() {
   console.log("\nUpload and validation");
   const db = adminClient();
-  const { data: cse } = await db.from("programs").select("id").ilike("name", "%(CSE)").eq("institution_id", (await db.from("institutions").select("id").eq("name", "Deccan Institute of Technology").single()).data!.id).single();
-  const { data: ece } = await db.from("programs").select("id").ilike("name", "%Electronics%").eq("institution_id", (await db.from("institutions").select("id").eq("name", "Deccan Institute of Technology").single()).data!.id).single();
+  const deccan = (await db.from("institutions").select("id").eq("name", "Deccan Institute of Technology").single()).data!.id;
+  const { data: cse } = await db.from("programs").select("id").ilike("name", "%(CSE)").eq("institution_id", deccan).single();
+  const { data: ece } = await db.from("programs").select("id").ilike("name", "%Electronics%").eq("institution_id", deccan).single();
 
   const clean = await call("admin.deccan", "/api/app/upload", { programId: ece!.id, fileName: "clean_upload.csv", rows: csvRows("clean_upload.csv") });
   check("clean_upload.csv has no issues", clean.status === 200 && clean.json.issues.length === 0, JSON.stringify(clean.json?.stats?.byRule ?? clean.json));
@@ -74,34 +38,31 @@ async function upload() {
   await pages("admin.deccan", [`/institution/history/${submit.json.batchId}`]);
 }
 
+async function basePages() {
+  console.log("Pages");
+  await pages(null, ["/", "/login", "/docs/rules"]);
+  await pages("admin.deccan", ["/institution", "/institution/upload", "/institution/students", "/institution/students/new", "/institution/issues", "/institution/history", "/search?q=Ananya"]);
+  await pages("aicte.admin", ["/aicte", "/aicte?state=Telangana&level=UG", "/aicte/alerts", "/aicte/quota", "/aicte/duplicates", "/search?q=abcdef"]);
+  const dash = await call("aicte.admin", "/aicte");
+  check("dashboard shows the national KPIs", /Institutions reporting/.test(dash.text) && /22 \/ 24|22<!-- --> \/ <!-- -->24/.test(dash.text));
+  check("quota audit lists Vindhya", /Vindhya College/.test((await call("aicte.admin", "/aicte/quota")).text));
+  const dup = await call("aicte.admin", "/aicte/duplicates");
+  check("AICTE sees both sides of the match", /Bharat Institute/.test(dup.text) && /Sabarmati Institute/.test(dup.text));
+  const inst = await call("admin.deccan", "/institution");
+  check("intake meter shows Deccan CSE", /58/.test(inst.text) && /B\.Tech Computer Science/.test(inst.text));
+  const denied = await call("admin.deccan", "/aicte");
+  check("institution user gets no AICTE data", !/Institutions reporting/.test(denied.text), String(denied.status));
+  check("signed-out user is redirected to login", (await call(null, "/institution")).status === 307);
+}
+
+const SECTIONS: Record<string, () => Promise<void>> = { pages: basePages, upload, verify: verification };
+
 async function main() {
   loadEnv();
-  const section = process.argv[2];
-  const phase = (name: string) => !section || section === name;
-
-  if (phase("pages")) {
-    console.log("Pages");
-    await pages(null, ["/", "/login", "/docs/rules"]);
-    await pages("admin.deccan", ["/institution", "/institution/upload", "/institution/students", "/institution/students/new", "/institution/issues", "/institution/history"]);
-    await pages("aicte.admin", ["/aicte", "/aicte?state=Telangana&level=UG", "/aicte/alerts", "/aicte/quota", "/aicte/duplicates", "/search?q=abcdef"]);
-    await pages("admin.deccan", ["/search?q=Ananya"]);
-    const dash = await call("aicte.admin", "/aicte");
-    check("dashboard shows the national KPIs", /Institutions reporting/.test(dash.text) && /22 \/ 24|22<!-- --> \/ <!-- -->24/.test(dash.text));
-    const quota = await call("aicte.admin", "/aicte/quota");
-    check("quota audit lists Vindhya", /Vindhya College/.test(quota.text));
-    const dup = await call("aicte.admin", "/aicte/duplicates");
-    check("AICTE sees both sides of the match", /Bharat Institute/.test(dup.text) && /Sabarmati Institute/.test(dup.text));
-    const inst = await call("admin.deccan", "/institution");
-    check("intake meter shows Deccan CSE", /58/.test(inst.text) && /B\.Tech Computer Science/.test(inst.text));
-    const denied = await call("admin.deccan", "/aicte");
-    check("institution user gets no AICTE data", !/Institutions reporting/.test(denied.text) && /NEXT_REDIRECT|\/institution/.test(denied.text), String(denied.status));
-    const signedOut = await call(null, "/institution");
-    check("signed-out user is redirected to login", signedOut.status === 307, String(signedOut.status));
-  }
-  if (phase("upload")) await upload();
-
-  console.log(failures ? `\n✖ ${failures} check(s) failed` : "\n✔ All e2e checks passed");
-  if (failures) process.exit(1);
+  const wanted = process.argv[2];
+  for (const [name, run] of Object.entries(SECTIONS)) if (!wanted || wanted === name) await run();
+  console.log(state.failures ? `\n✖ ${state.failures} check(s) failed` : "\n✔ All e2e checks passed");
+  if (state.failures) process.exit(1);
 }
 
 runScript(main);

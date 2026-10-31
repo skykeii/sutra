@@ -5,7 +5,7 @@
 - [x] Phase 2: Seed
 - [x] Phase 3: Validation engine + upload wizard
 - [x] Phase 4: Dashboards, alerts, webhooks
-- [ ] Phase 5: Verification and credentials
+- [x] Phase 5: Verification and credentials
 - [ ] Phase 6: Audit and security pages
 - [ ] Phase 7: Marks and scholarship
 - [ ] Phase 8: Reports and APIs
