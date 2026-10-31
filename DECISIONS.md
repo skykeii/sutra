@@ -16,3 +16,13 @@
 - Realtime token handoff from the httpOnly session is built with the dashboards in Phase 4.
 - MFA enrolment (`/settings/security`) and login rate limiting are built in Phase 6 with the other security pages.
 - Sidebar items for later phases are shown but not linked until they are built.
+- Seed volume is 2,313 students and 2,413 enrolments, above the brief's ~2,000 and ~2,200, because withdrawn and supernumerary rows sit on top of the 70-98% fill; accepted since no scenario depends on the total.
+- Two students-per-enrolment sources exist: lateral UG entrants hold an earlier PassedOut diploma enrolment, so about 100 students have two records without creating false cross-matches.
+- Programs carry academic year 2026-27 as the reporting cycle, while admission dates span 2024 (with Sem 1-4 results) and 2026 (freshers); intake counts all Active enrolments per program.
+- Semester 0 in `university_results` holds qualifying marks.
+- The brief says "3 orgs" but lists 4 verifiers; the seed creates the 4 listed.
+- Two reporting gaps are planted: Thar College of Architecture and Sundarban College of Pharmacy have programs but no submissions, for the submission tracker.
+- `messy_upload.csv` is 8 clean rows, 100 rows with 3 auto-fixable defects each, and 12 rows that need a person; applying all fixes admits more than the 8 rows in the scenario, which still fires OVER_INTAKE.
+- Demo account emails use the reserved `sutra.example` domain, so they can never reach a real inbox.
+- The seed stores the scholarship portal key in `.env.local` as well as printing it once, because the database holds only its hash and `/portal-demo` needs it.
+- Re-running the seed resets seeded rows to their planted state; it leaves `audit_log` untouched because the log is append-only.

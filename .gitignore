@@ -9,3 +9,4 @@ next-env.d.ts
 # Secrets: only the example file is ever committed
 .env*
 !.env.example
+.claude/
