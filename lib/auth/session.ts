@@ -38,9 +38,18 @@ export async function getSessionProfile(): Promise<SessionProfile | null> {
   };
 }
 
+/** AICTE admins need a second factor, except in demo mode where the portal shows a banner instead. */
+export async function mfaSatisfied(profile: SessionProfile): Promise<boolean> {
+  if (profile.role !== "aicte_admin" || process.env.DEMO_MODE === "true") return true;
+  const supabase = await createServerSupabase();
+  const { data } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+  return data?.currentLevel === "aal2";
+}
+
 export async function requireRole(allowed: AppRole[]): Promise<SessionProfile> {
   const profile = await getSessionProfile();
   if (!profile) redirect("/login");
   if (!allowed.includes(profile.role)) redirect(ROLE_HOME[profile.role]);
+  if (!(await mfaSatisfied(profile))) redirect("/settings/security?required=1");
   return profile;
 }

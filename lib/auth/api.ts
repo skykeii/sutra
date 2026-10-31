@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import { sha256Hex } from "@/lib/crypto";
 import { appendAudit } from "@/lib/audit";
 import type { AppRole } from "@/lib/auth/roles";
-import { getSessionProfile, type SessionProfile } from "@/lib/auth/session";
+import { getSessionProfile, mfaSatisfied, type SessionProfile } from "@/lib/auth/session";
 import { ApiError, assertSameOrigin } from "@/lib/http";
 import { takeToken } from "@/lib/ratelimit";
 import { createAdminSupabase } from "@/lib/supabase/admin";
@@ -16,6 +16,7 @@ export async function apiProfile(req: NextRequest, allowed: AppRole[]): Promise<
   const profile = await getSessionProfile();
   if (!profile) throw new ApiError(401, "NOT_SIGNED_IN", "Please sign in.");
   if (!allowed.includes(profile.role)) throw new ApiError(403, "FORBIDDEN", "Your role does not allow this.");
+  if (!(await mfaSatisfied(profile))) throw new ApiError(403, "MFA_REQUIRED", "Please complete two-factor sign-in first.");
   return profile;
 }
 

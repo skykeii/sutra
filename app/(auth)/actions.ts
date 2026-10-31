@@ -1,9 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { appendAudit } from "@/lib/audit";
+import { sha256Hex } from "@/lib/crypto";
+import { LIMITS, takeToken } from "@/lib/ratelimit";
 import { ROLE_HOME, type AppRole } from "@/lib/auth/roles";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { createServerSupabase } from "@/lib/supabase/server";
@@ -21,9 +24,17 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
   const parsed = credentials.safeParse({ email: formData.get("email"), password: formData.get("password") });
   if (!parsed.success) return { error: "Enter a valid email and password." };
 
+  const ip = (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() ?? "local";
+  if (!(await takeToken(`login:${ip}:${sha256Hex(parsed.data.email.toLowerCase()).slice(0, 16)}`, ...LIMITS.login))) {
+    return { error: "Too many sign-in attempts. Please wait a minute and try again." };
+  }
+
   const supabase = await createServerSupabase();
   const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
-  if (error || !data.user) return { error: "That email and password did not match." };
+  if (error || !data.user) {
+    await appendAudit(createAdminSupabase(), { actorRole: "public", action: "auth.login_failed", entity: "session" });
+    return { error: "That email and password did not match." };
+  }
 
   const { data: profile } = await supabase.from("profiles").select("role").eq("user_id", data.user.id).maybeSingle();
   if (!profile) {
