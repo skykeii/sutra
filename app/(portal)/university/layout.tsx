@@ -1,8 +1,7 @@
 import { PortalShell } from "@/components/layout/portal-shell";
 import { requireRole } from "@/lib/auth/session";
-import { NAV } from "@/lib/nav";
 
 export default async function Layout({ children }: { children: React.ReactNode }) {
   const profile = await requireRole(["university_admin"]);
-  return <PortalShell profile={profile} nav={NAV.university}>{children}</PortalShell>;
+  return <PortalShell profile={profile}>{children}</PortalShell>;
 }

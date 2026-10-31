@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { appendAudit } from "@/lib/audit";
@@ -39,6 +40,12 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
     entityId: data.user.id,
   });
   redirect(ROLE_HOME[role]);
+}
+
+export async function markNotificationsRead(): Promise<void> {
+  const supabase = await createServerSupabase();
+  await supabase.from("notifications").update({ read_at: new Date().toISOString() }).is("read_at", null);
+  revalidatePath("/", "layout");
 }
 
 export async function logout(): Promise<void> {

@@ -4,7 +4,7 @@
 - [x] Phase 1: Foundation
 - [x] Phase 2: Seed
 - [x] Phase 3: Validation engine + upload wizard
-- [ ] Phase 4: Dashboards, alerts, webhooks
+- [x] Phase 4: Dashboards, alerts, webhooks
 - [ ] Phase 5: Verification and credentials
 - [ ] Phase 6: Audit and security pages
 - [ ] Phase 7: Marks and scholarship

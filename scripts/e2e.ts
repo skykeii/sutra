@@ -83,8 +83,18 @@ async function main() {
     console.log("Pages");
     await pages(null, ["/", "/login", "/docs/rules"]);
     await pages("admin.deccan", ["/institution", "/institution/upload", "/institution/students", "/institution/students/new", "/institution/issues", "/institution/history"]);
+    await pages("aicte.admin", ["/aicte", "/aicte?state=Telangana&level=UG", "/aicte/alerts", "/aicte/quota", "/aicte/duplicates", "/search?q=abcdef"]);
+    await pages("admin.deccan", ["/search?q=Ananya"]);
+    const dash = await call("aicte.admin", "/aicte");
+    check("dashboard shows the national KPIs", /Institutions reporting/.test(dash.text) && /22 \/ 24|22<!-- --> \/ <!-- -->24/.test(dash.text));
+    const quota = await call("aicte.admin", "/aicte/quota");
+    check("quota audit lists Vindhya", /Vindhya College/.test(quota.text));
+    const dup = await call("aicte.admin", "/aicte/duplicates");
+    check("AICTE sees both sides of the match", /Bharat Institute/.test(dup.text) && /Sabarmati Institute/.test(dup.text));
+    const inst = await call("admin.deccan", "/institution");
+    check("intake meter shows Deccan CSE", /58/.test(inst.text) && /B\.Tech Computer Science/.test(inst.text));
     const denied = await call("admin.deccan", "/aicte");
-    check("institution user is redirected away from AICTE", denied.status === 307, String(denied.status));
+    check("institution user gets no AICTE data", !/Institutions reporting/.test(denied.text) && /NEXT_REDIRECT|\/institution/.test(denied.text), String(denied.status));
     const signedOut = await call(null, "/institution");
     check("signed-out user is redirected to login", signedOut.status === 307, String(signedOut.status));
   }
