@@ -52,7 +52,7 @@ Also on `/portal-demo`: **Sneha** gets a verified answer with minimal fields, **
 
 ## Acceptance checklist results
 
-Run on 2026-11-02 against a production build (`next build` and `next start`) and the real Supabase project. The evidence is `npm run e2e` (8 sections, data reset before each), `npm run smoke` and `npm run test`. Together they made more than 400 checks with none failing, including 80 unit tests.
+Run on 2026-11-01 against a production build (`next build` and `next start`) and the real Supabase project. The evidence is `npm run e2e` (8 sections, data reset before each), `npm run smoke` and `npm run test`. Together they made more than 400 checks with none failing, including 80 unit tests.
 
 **How the screens were tested.** Signed-in pages were tested over HTTP with real session cookies, checking status and page content. Nobody has clicked through them in a browser, because the automated browser was not used to sign in to the hosted Supabase project. Public pages were also loaded in a browser. Items marked **Partly** say what is still open.
 
@@ -68,7 +68,7 @@ Run on 2026-11-02 against a production build (`next build` and `next start`) and
 | Audit check passes; tamper detected at the exact entry; restore works | **Pass** | Tamper at entry 50 reports entry 50, and restore brings the chain back to intact |
 | Scholarship denies mismatched marks and returns only minimal fields | **Pass** | Marks mismatch, detained and duplicate claim are all denied; success returns exactly 7 fields |
 | Ask the Data answers at least 8 example questions through the catalog only | **Pass, keyword mode** | All 15 catalog examples are answered and a SQL attempt runs nothing. No `ANTHROPIC_API_KEY` is set, so **the live Claude path has never run**; only its fallback has |
-| Every simulated integration is labelled | **Pass** | APAAR and all three integrations on the landing page, DigiLocker chip, SMS inbox, and portal page banner |
+| Every simulated integration is labelled | **Pass** | APAAR, DigiLocker and ePASS on the landing page, plus the DigiLocker chip, SMS inbox and portal page banner |
 
 ### Not yet exercised
 
