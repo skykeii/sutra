@@ -1,9 +1,9 @@
 import { createHmac } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { decryptField } from "@/lib/crypto";
+import type { WebhookEvent } from "@/lib/webhook-events";
 
-export const WEBHOOK_EVENTS = ["over_intake", "over_quota", "cross_match", "marks_mismatch", "credential_revoked"] as const;
-export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
+export { WEBHOOK_EVENTS, type WebhookEvent } from "@/lib/webhook-events";
 
 // Blocks the obvious internal targets; localhost stays allowed in demo mode for the built-in sink.
 export function isAllowedWebhookUrl(url: string): boolean {

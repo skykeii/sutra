@@ -1,6 +1,7 @@
 import { adminClient, loadEnv, runScript } from "./lib/run";
 import { call, check, csvRows, pages, state } from "./e2e/helpers";
 import { marks } from "./e2e/marks";
+import { reports } from "./e2e/reports";
 import { security } from "./e2e/security";
 import { verification } from "./e2e/verification";
 
@@ -57,7 +58,7 @@ async function basePages() {
   check("signed-out user is redirected to login", (await call(null, "/institution")).status === 307);
 }
 
-const SECTIONS: Record<string, () => Promise<void>> = { pages: basePages, upload, verify: verification, security, marks };
+const SECTIONS: Record<string, () => Promise<void>> = { pages: basePages, upload, verify: verification, security, marks, reports };
 
 async function main() {
   loadEnv();
