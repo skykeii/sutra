@@ -26,3 +26,9 @@
 - Demo account emails use the reserved `sutra.example` domain, so they can never reach a real inbox.
 - The seed stores the scholarship portal key in `.env.local` as well as printing it once, because the database holds only its hash and `/portal-demo` needs it.
 - Re-running the seed resets seeded rows to their planted state; it leaves `audit_log` untouched because the log is append-only.
+- Client-side mutations use route handlers under `/api/app`, not server actions, so one error shape and HTTP tests cover them.
+- `npm run demo:reset` (uses a `seeded` flag) returns the data to its planted state between rehearsals; it never touches the audit log.
+- `messy_upload.csv`'s first two rows take the free NRI and lateral seats (58 to 60); the next six fire OVER_INTAKE and OVER_QUOTA and are held back, so the meter turns red on the attempt rather than admitting past intake.
+- Capacity rules only count rows with no other errors, so unfixed rows don't crowd the issue list; after "Apply all safe fixes" the rest then hit OVER_INTAKE.
+- Name casing and spacing use FIELD_FORMAT at Warning severity with a safe fix; a `+91` mobile is treated as a format issue, not formula injection.
+- Institutions can see only a generic CROSS_INST_DUP notice; alerts are readable only by AICTE.

@@ -354,7 +354,7 @@ async function main() {
   // ---------- Reference rows ----------
   await upsert("universities", universities);
   await upsert("institutions", institutions);
-  await upsert("verifier_orgs", VERIFIER_ORGS.map((o) => ({ id: uid("verifier", o.code), name: o.name, type: o.type, status: o.status, scope: [...o.scope] })));
+  await upsert("verifier_orgs", VERIFIER_ORGS.map((o) => ({ id: uid("verifier", o.code), name: o.name, type: o.type, status: o.status, scope: [...o.scope], seeded: true })));
   const portalId = uid("portal", "epass");
   await upsert("scholarship_portals", [{ id: portalId, name: "Simulated ePASS-style Portal", state: "Telangana" }]);
   await upsert("programs", programs.map((p) => ({
@@ -428,7 +428,7 @@ async function main() {
   );
   const adminId = userIds.get("aicte.admin")!;
   const admin2Id = userIds.get("aicte.admin2")!;
-  await upsert("verifier_orgs", VERIFIER_ORGS.map((o) => ({ id: uid("verifier", o.code), name: o.name, type: o.type, status: o.status, scope: [...o.scope], approved_by: o.status === "Approved" ? admin2Id : null })));
+  await upsert("verifier_orgs", VERIFIER_ORGS.map((o) => ({ id: uid("verifier", o.code), name: o.name, type: o.type, status: o.status, scope: [...o.scope], seeded: true, approved_by: o.status === "Approved" ? admin2Id : null })));
 
   // ---------- Students, batches, enrolments ----------
   await upsert("students", studentList.map((s) => ({
@@ -472,6 +472,7 @@ async function main() {
     status: "Submitted",
     submitted_by: userIds.get(`admin.${program.instCode}`),
     created_at: createdAt,
+    seeded: true,
   })));
 
   await upsert("enrolments", enrolments.map((e) => ({
@@ -560,9 +561,9 @@ async function main() {
       created_at: daysAgo(14),
     },
   );
-  await upsert("validation_issues", issueRows);
+  await upsert("validation_issues", issueRows.map((r) => ({ suggestion: null, ...r, seeded: true })));
 
-  await upsert("cross_matches", [{ id: uid("cross", kabirSecond.student.hash), apaar_hash: kabirSecond.student.hash, enrolment_a: kabirFirst.id, enrolment_b: kabirSecond.id, status: "Open", created_at: daysAgo(6) }]);
+  await upsert("cross_matches", [{ id: uid("cross", kabirSecond.student.hash), apaar_hash: kabirSecond.student.hash, enrolment_a: kabirFirst.id, enrolment_b: kabirSecond.id, status: "Open", created_at: daysAgo(6), seeded: true }]);
 
   const ghostCounts = new Map<string, number>();
   ghostMembers.forEach((e) => ghostCounts.set(e.student.mobile, (ghostCounts.get(e.student.mobile) ?? 0) + 1));
@@ -576,15 +577,17 @@ async function main() {
     explanation: `${count} students at one college list the same mobile number, which is unusual and worth a review.`,
     status: "Open",
     created_at: daysAgo(3),
+    member_ids: ghostMembers.filter((e) => e.student.mobile === mobile).map((e) => e.student.id),
+    seeded: true,
   })));
 
-  await upsert("alerts", [
+  await upsert("alerts", ([
     { id: uid("alert", "CROSS_INST_DUP", kabirSecond.id), code: "CROSS_INST_DUP", severity: "Warning", institution_id: sabarmatiCse.instId, program_id: sabarmatiCse.id, title: "Same student active at two institutions", message: "One APAAR ID has overlapping full-time enrolments in Karnataka and Gujarat.", meta: { states: ["Karnataka", "Gujarat"] }, created_at: daysAgo(6) },
     { id: uid("alert", "OVER_QUOTA", vindhyaCse.id), code: "OVER_QUOTA", severity: "Error", institution_id: vindhyaCse.instId, program_id: vindhyaCse.id, title: "Non-Convenor seats over limit", message: "Vindhya College of Engineering admitted 21 Non-Convenor students against 15 allowed.", meta: { allowed: 15, enrolled: 21 }, created_at: daysAgo(9) },
     { id: uid("alert", "QUOTA_NO_ALLOTMENT", vindhyaCse.id), code: "QUOTA_NO_ALLOTMENT", severity: "Error", institution_id: vindhyaCse.instId, program_id: vindhyaCse.id, title: "Convenor seat without allotment", message: "A Convenor admission has no counselling allotment number.", meta: { count: 1 }, created_at: daysAgo(9) },
     { id: uid("alert", "OVER_INTAKE", konkanCse.id), code: "OVER_INTAKE", severity: "Error", institution_id: konkanCse.instId, program_id: konkanCse.id, title: "Admissions over approved intake", message: "Konkan Engineering College admitted 33 students against an approved intake of 30.", meta: { approved: 30, enrolled: 33 }, created_at: daysAgo(14) },
     { id: uid("alert", "SHARED_MOBILE", gangaId), code: "SHARED_MOBILE", severity: "Warning", institution_id: gangaId, program_id: null, title: "Ghost student pattern", message: "40 students at Ganga Valley Institute of Technology share 3 mobile numbers.", meta: { members: 40, numbers: 3 }, created_at: daysAgo(3) },
-  ]);
+  ] as Row[]).map((a) => ({ ...a, seeded: true })));
 
   // ---------- University results ----------
   const resultCohort = studentList.filter((s) => s.cohort2024).slice(0, RESULTS_STUDENT_TARGET);
@@ -648,6 +651,7 @@ async function main() {
       signature,
       submitted_by: userIds.get(`admin.${UNIVERSITIES.find((u) => uid("university", u.code) === university)?.code}`),
       created_at: daysAgo(70 - Number(semester) * 10),
+      seeded: true,
     });
     rows.forEach((r) => resultRows.push({ ...r, id: uid("result", r.university_id, r.apaar_hash, r.semester), batch_id: batchId, batch_signature: signature }));
   }
@@ -694,6 +698,7 @@ async function main() {
     status: recordId === "SUTRA-DEMO-REVOKED" ? "Revoked" : "Valid",
     revoked_reason: recordId === "SUTRA-DEMO-REVOKED" ? revokedReason : null,
     created_at: issuedAt,
+    seeded: true,
   })));
   await upsert("revocations", [{ id: uid("revocation", "SUTRA-DEMO-REVOKED"), record_id: "SUTRA-DEMO-REVOKED", reason: revokedReason, revoked_by: admin2Id, at: daysAgo(11), created_at: daysAgo(11) }]);
 
@@ -702,24 +707,28 @@ async function main() {
   const navayuga = uid("verifier", "navayuga");
   const council = uid("verifier", "council");
   const days7 = (from: number) => new Date(REF_DATE.getTime() - from * DAY + 7 * DAY).toISOString();
-  await upsert("consents", [
+  await upsert("consents", ([
     { id: uid("consent", "ananya-pending"), student_id: studentOf("900000000001").id, grantee_type: "verifier_org", grantee_id: navayuga, purpose: "Pre-employment verification", scope: ["institution", "program", "years", "status"], created_at: daysAgo(1) },
     { id: uid("consent", "priya-pending"), student_id: studentOf("900000000003").id, grantee_type: "verifier_org", grantee_id: navayuga, purpose: "Campus hiring verification", scope: ["institution", "program", "years", "status"], created_at: daysAgo(2) },
     { id: uid("consent", "divya-approved"), student_id: studentOf("900000000009").id, grantee_type: "verifier_org", grantee_id: navayuga, purpose: "Pre-employment verification", scope: ["institution", "program", "years", "status"], approved_at: daysAgo(5), consumed_at: daysAgo(5), expires_at: days7(5), created_at: daysAgo(5) },
     { id: uid("consent", "divya-council"), student_id: studentOf("900000000009").id, grantee_type: "verifier_org", grantee_id: council, purpose: "Regulatory inspection", scope: ["institution", "program", "years", "status", "quota"], approved_at: daysAgo(20), revoked_at: daysAgo(18), expires_at: days7(20), created_at: daysAgo(20) },
     { id: uid("consent", "sneha-portal"), student_id: studentOf("900000000005").id, grantee_type: "scholarship_portal", grantee_id: portalId, purpose: "Scholarship verification", scope: ["enrolment_status", "program", "institution", "latest_semester", "result_status", "aggregate_pct"], approved_at: daysAgo(4), expires_at: days7(4), created_at: daysAgo(4) },
-  ]);
-  await upsert("access_log", [
+  ] as Row[]).map((r) => ({ approved_at: null, consumed_at: null, revoked_at: null, expires_at: null, ...r, seeded: true })));
+  await upsert("access_log", ([
     { id: uid("access", "divya-1"), who: userIds.get("verifier.navayuga"), grantee: "Navayuga Software Services", student_id: studentOf("900000000009").id, fields_returned: ["institution", "program", "years", "status"], purpose: "Pre-employment verification", at: daysAgo(5), created_at: daysAgo(5) },
     { id: uid("access", "divya-2"), who: userIds.get("verifier.council"), grantee: "National Technical Standards Council", student_id: studentOf("900000000009").id, fields_returned: ["institution", "program", "years", "status", "quota"], purpose: "Regulatory inspection", at: daysAgo(19), created_at: daysAgo(19) },
     { id: uid("access", "sneha-1"), who: userIds.get("portal.epass"), grantee: "Simulated ePASS-style Portal", student_id: studentOf("900000000005").id, fields_returned: ["enrolment_status", "program", "institution", "latest_semester", "result_status", "aggregate_pct"], purpose: "Scholarship verification", at: daysAgo(4), created_at: daysAgo(4) },
-  ]);
-  await upsert("scholarship_requests", [
-    { id: uid("scholarship", "sneha"), portal_id: portalId, apaar_hash: studentOf("900000000005").hash, scheme: "Post-Matric Merit Scholarship", status: "Fulfilled", result: { verified: true, enrolment_status: "Active", latest_semester: 4, result_status: "Pass" }, created_at: daysAgo(4) },
+  ] as Row[]).map((r) => ({ ...r, seeded: true })));
+  await upsert("scholarship_requests", ([
+    { id: uid("scholarship", "sneha"), portal_id: portalId, apaar_hash: studentOf("900000000005").hash, scheme: "Technical Education Fee Reimbursement", status: "Fulfilled", result: { verified: true, enrolment_status: "Active", latest_semester: 4, result_status: "Pass" }, created_at: daysAgo(4) },
     { id: uid("scholarship", "meera"), portal_id: portalId, apaar_hash: studentOf("900000000007").hash, scheme: "Post-Matric Merit Scholarship", status: "Fulfilled", result: { verified: true, enrolment_status: "Active", latest_semester: 4, result_status: "Pass" }, created_at: daysAgo(12) },
     { id: uid("scholarship", "vikram"), portal_id: portalId, apaar_hash: studentOf("900000000006").hash, scheme: "Post-Matric Merit Scholarship", status: "Denied", denial_reason: "Student detained in Sem 4", created_at: daysAgo(8) },
-  ]);
+  ] as Row[]).map((r) => ({ denial_reason: null, result: null, ...r, seeded: true })));
   await upsert("simulated_sms", [{ id: uid("sms", "welcome-1"), student_id: studentOf("900000000001").id, message: "Sutra: your enrolment record has been verified.", created_at: daysAgo(10) }]);
+
+  // Deccan's webhook points at the app's own demo sink, so scenario 1 shows a real signed delivery.
+  await upsert("webhooks", [{ id: uid("webhook", "deccan"), owner_id: deccanCse.instId, url: `${baseUrl}/api/demo/webhook-sink`, events: ["over_intake", "over_quota", "cross_match", "marks_mismatch", "credential_revoked"], secret_enc: encryptField(sha256Hex(uid("webhook-secret", "deccan"))), seeded: true }]);
+  await upsert("approvals", [{ id: uid("approval", "intake-demo"), action_type: "CHANGE_INTAKE", payload: { program_id: programOf("kaveri", "CSE").id, program_name: "B.Tech Computer Science & Engineering (CSE)", institution: "Kaveri College of Engineering", new_intake: 40, reason: "Additional lab capacity inspected and approved." }, requested_by: adminId, status: "Pending", approved_by: null, created_at: daysAgo(2), seeded: true }]);
 
   // ---------- Scholarship API key: printed once, only when first created ----------
   const { data: existingKey } = await db.from("api_keys").select("id").eq("portal_id", portalId).maybeSingle();
@@ -806,6 +815,10 @@ function writeDemoFiles({ deccanCseStudents, existingStudent, uploadPeople, vali
   const dir = join(ROOT, "demo-files");
   mkdirSync(dir, { recursive: true });
 
+  // Everyone in the demo files is within the usual age range, so "clean" really means no issues.
+  const eligible = uploadPeople.filter((p) => p.dob >= "2001-01-01");
+  if (eligible.length < 132) throw new Error(`Only ${eligible.length} eligible people for the demo files`);
+
   const baseRow = (p: DemoFileInput["uploadPeople"][number], i: number, quota: "CONVENOR" | "NON_CONVENOR"): CsvRow => ({
     apaar_id: p.apaar,
     name: p.name,
@@ -830,15 +843,21 @@ function writeDemoFiles({ deccanCseStudents, existingStudent, uploadPeople, vali
     enrolment_status: "Active",
   });
 
-  const cleanPeople = uploadPeople.slice(0, 12);
+  const cleanPeople = eligible.slice(0, 12);
   writeFileSync(join(dir, "clean_upload.csv"), toCsv(CSV_COLUMNS, cleanPeople.map((p, i) => baseRow(p, i, i < 8 ? "CONVENOR" : "NON_CONVENOR"))));
 
   // 8 clean rows + 100 rows with exactly 3 auto-fixable defects + 12 rows needing a person to decide.
   const messy: CsvRow[] = [];
-  const messyPeople = uploadPeople.slice(12);
+  const messyPeople = eligible.slice(12);
   let cursor = 0;
   const nextMessy = () => messyPeople[cursor++]!;
-  for (let i = 0; i < 8; i++) messy.push(baseRow(nextMessy(), 100 + i, "NON_CONVENOR"));
+  // Deccan CSE has one NRI and one lateral seat free, so these 8 rows take it from 58 to 60 and then go over.
+  for (let i = 0; i < 8; i++) {
+    const row = baseRow(nextMessy(), 100 + i, "CONVENOR");
+    if (i === 0) Object.assign(row, { quota_type: "NRI", counselling_allotment_no: "", is_nri: "true", passport_no: "P7654321" });
+    if (i === 1) Object.assign(row, { quota_type: "LATERAL", admission_category: "Lateral", counselling_allotment_no: "", prev_qualification: "Diploma" });
+    messy.push(row);
+  }
 
   const scrambleName = (name: string) => `  ${name.toUpperCase()} `;
   const typoDob = (dob: string) => `${Number(dob.slice(0, 4)) - 2}${dob.slice(4)}`;

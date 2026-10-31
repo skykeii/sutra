@@ -1,5 +1,20 @@
 # Sutra build plan
 
+## Checklist
+- [x] Phase 1: Foundation
+- [x] Phase 2: Seed
+- [x] Phase 3: Validation engine + upload wizard
+- [ ] Phase 4: Dashboards, alerts, webhooks
+- [ ] Phase 5: Verification and credentials
+- [ ] Phase 6: Audit and security pages
+- [ ] Phase 7: Marks and scholarship
+- [ ] Phase 8: Reports and APIs
+- [ ] Phase 9: AI features and fraud detection
+- [ ] Phase 10: Polish, README, DEMO, smoke
+
+## Blockers
+None.
+
 ## Folders
 - `app/`: `(auth)/login`, `(portal)/{aicte,institution,university,verifier,student}`, later `verify/[recordId]`, `transparency`, `docs`, `portal-demo`, `privacy`, `api/v1/*`
 - `components/`: `ui/` (shadcn), `layout/` (portal shell, logo, pipeline), later `DataTable`, `KpiCard`, `StatusBadge`, `FilterBar`, `ExportMenu`
