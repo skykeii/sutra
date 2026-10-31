@@ -9,7 +9,7 @@
 - [x] Phase 6: Audit and security pages
 - [x] Phase 7: Marks and scholarship
 - [x] Phase 8: Reports and APIs
-- [ ] Phase 9: AI features and fraud detection
+- [x] Phase 9: AI features and fraud detection
 - [ ] Phase 10: Polish, README, DEMO, smoke
 
 ## Blockers

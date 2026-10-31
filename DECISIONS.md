@@ -32,3 +32,10 @@
 - Capacity rules only count rows with no other errors, so unfixed rows don't crowd the issue list; after "Apply all safe fixes" the rest then hit OVER_INTAKE.
 - Name casing and spacing use FIELD_FORMAT at Warning severity with a safe fix; a `+91` mobile is treated as a format issue, not formula injection.
 - Institutions can see only a generic CROSS_INST_DUP notice; alerts are readable only by AICTE.
+- AI uses `claude-sonnet-4-6` as the brief specifies, only when `ANTHROPIC_API_KEY` is set; otherwise a keyword matcher and templates give the same safe behaviour. With no key set, the live AI path has not been exercised.
+- Ask the Data sends the officer's typed question and catalog descriptions to Claude; summaries see only aggregate rows. Upload text and student data never enter a prompt.
+- The category-spike check compares NRI share with peers in the same state, or nationally when a state has fewer than 3 peers.
+- Fraud re-runs keep a cluster's review status, so a re-run never reopens a reviewed case.
+- `GET /students/{apaarId}/verify` takes the consent ID as `X-Consent-Token`, and each consent works once.
+- A scholarship poll must send `request_id`; a fresh application after a fulfilled one for the same scheme and year is a duplicate claim.
+- The audit trail records sensitive reads and every write, but not each ordinary dashboard page view, to keep the chain meaningful.
