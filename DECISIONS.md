@@ -39,3 +39,5 @@
 - `GET /students/{apaarId}/verify` takes the consent ID as `X-Consent-Token`, and each consent works once.
 - A scholarship poll must send `request_id`; a fresh application after a fulfilled one for the same scheme and year is a duplicate claim.
 - The audit trail records sensitive reads and every write, but not each ordinary dashboard page view, to keep the chain meaningful.
+- Four early audit entries (seq 446, 447, 501, 502) hold a synthetic APAAR ID in an API path, logged before the path was redacted. The log is append-only, so they stay; `npm run smoke` lists them on every run and fails on any new one.
+- Public record lookups log an ID only if the record exists, so a mistyped APAAR ID never enters the audit log.

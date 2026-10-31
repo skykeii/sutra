@@ -13,7 +13,7 @@ export default async function Page({ params }: { params: Promise<{ recordId: str
   const recordId = decodeURIComponent((await params).recordId).slice(0, 60);
   const admin = createAdminSupabase();
   const result = await checkRecord(admin, recordId);
-  await appendAudit(admin, { actorRole: "public", action: "credential.verify", entity: "credential", entityId: recordId, meta: { verdict: result.verdict, source: "page" } });
+  await appendAudit(admin, { actorRole: "public", action: "credential.verify", entity: "credential", entityId: result.verdict === "NOT_FOUND" ? null : recordId, meta: { verdict: result.verdict, source: "page" } });
   return (
     <main className="space-y-5">
       <h1 className="text-xl font-semibold">Record {recordId}</h1>

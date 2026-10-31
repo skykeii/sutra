@@ -43,7 +43,7 @@ export async function apiKeyOwner(req: NextRequest, scope: string): Promise<ApiK
   if (!(data.scopes as string[]).includes(scope)) throw new ApiError(403, "API_KEY_SCOPE", `This API key does not have the ${scope} scope.`);
   if (!(await takeToken(`apikey:${data.id}`, 120, 2))) throw new ApiError(429, "RATE_LIMITED", "Too many requests for this API key. Please slow down.");
   await admin.from("api_keys").update({ last_used_at: new Date().toISOString() }).eq("id", data.id);
-  await appendAudit(admin, { actorRole: "api_key", action: "api.call", entity: "api_key", entityId: data.id, meta: { path: req.nextUrl.pathname, method: req.method, scope } });
+  await appendAudit(admin, { actorRole: "api_key", action: "api.call", entity: "api_key", entityId: data.id, meta: { path: req.nextUrl.pathname.replace(/\d{12}/g, "{apaar_id}"), method: req.method, scope } });
   return {
     id: data.id,
     prefix: data.key_prefix,

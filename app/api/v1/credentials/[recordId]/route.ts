@@ -11,7 +11,7 @@ export const GET = route<{ params: Promise<{ recordId: string }> }>(async (req, 
   const recordId = decodeURIComponent((await params).recordId).slice(0, 60);
   const admin = createAdminSupabase();
   const result = await checkRecord(admin, recordId);
-  await appendAudit(admin, { actorRole: "public", action: "credential.verify", entity: "credential", entityId: recordId, meta: { verdict: result.verdict, source: "api" } });
+  await appendAudit(admin, { actorRole: "public", action: "credential.verify", entity: "credential", entityId: result.verdict === "NOT_FOUND" ? null : recordId, meta: { verdict: result.verdict, source: "api" } });
   if (result.verdict === "NOT_FOUND") throw new ApiError(404, "NOT_FOUND", "No record with this ID exists.");
   const { status: enrolmentStatus, ...fields } = result.fields ?? { status: null };
   return NextResponse.json({ record_id: recordId, status: result.verdict, signature_valid: result.signatureValid, revoked_reason: result.revokedReason ?? null, enrolment_status: enrolmentStatus, ...fields });

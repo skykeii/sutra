@@ -42,7 +42,9 @@ export async function rlsTest(check: Check): Promise<void> {
   check("College cannot read another college's programs", ((await deccan.from("programs").select("id").eq("institution_id", bharatId)).data ?? []).length === 0);
   check("College cannot read another college's issues", ((await deccan.from("validation_issues").select("id").eq("institution_id", bharatId)).data ?? []).length === 0);
   check("College cannot read another college's batches", ((await deccan.from("upload_batches").select("id").eq("institution_id", bharatId)).data ?? []).length === 0);
-  const bharatStudents = (await admin.from("enrolments").select("student_id").eq("institution_id", bharatId).limit(5)).data!.map((e) => e.student_id);
+  // Some lateral entrants hold an earlier diploma at Deccan, and Deccan may rightly see those students.
+  const deccanStudents = new Set((await admin.from("enrolments").select("student_id").eq("institution_id", deccanId).limit(1000)).data!.map((e) => e.student_id));
+  const bharatStudents = (await admin.from("enrolments").select("student_id").eq("institution_id", bharatId).limit(200)).data!.map((e) => e.student_id).filter((s) => !deccanStudents.has(s)).slice(0, 20);
   check("College cannot read another college's students", ((await deccan.from("students").select("id").in("id", bharatStudents)).data ?? []).length === 0);
   const ownEnrolments = (await deccan.from("enrolments").select("institution_id")).data ?? [];
   check("College does read its own enrolments", ownEnrolments.length > 0 && ownEnrolments.every((e) => e.institution_id === deccanId), `${ownEnrolments.length} rows`);

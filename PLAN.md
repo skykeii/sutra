@@ -10,7 +10,7 @@
 - [x] Phase 7: Marks and scholarship
 - [x] Phase 8: Reports and APIs
 - [x] Phase 9: AI features and fraud detection
-- [ ] Phase 10: Polish, README, DEMO, smoke
+- [x] Phase 10: Polish, README, DEMO, smoke
 
 ## Blockers
 None.

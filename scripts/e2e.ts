@@ -1,8 +1,10 @@
+import { DEMO_PASSWORD, demoEmail } from "@/lib/demo-accounts";
 import { adminClient, loadEnv, runScript } from "./lib/run";
 import { call, check, csvRows, pages, state } from "./e2e/helpers";
 import { ai } from "./e2e/ai";
 import { marks } from "./e2e/marks";
 import { reports } from "./e2e/reports";
+import { scenarios } from "./e2e/scenarios";
 import { security } from "./e2e/security";
 import { verification } from "./e2e/verification";
 
@@ -42,11 +44,35 @@ async function upload() {
   await pages("admin.deccan", [`/institution/history/${submit.json.batchId}`]);
 }
 
+// Posts the real login form, as a browser with JavaScript off would, to exercise the sign-in action and its cookies.
+async function loginForm() {
+  const base = process.env.E2E_BASE_URL ?? "http://localhost:3000";
+  const submit = async (email: string, password: string) => {
+    const html = await (await fetch(`${base}/login`)).text();
+    const form = new FormData();
+    for (const m of html.matchAll(/<input type="hidden" name="(\$ACTION[^"]*)"(?: value="([^"]*)")?/g)) form.append(m[1]!, (m[2] ?? "").replace(/&quot;/g, '"').replace(/&amp;/g, "&"));
+    form.append("email", email);
+    form.append("password", password);
+    return fetch(`${base}/login`, { method: "POST", body: form, redirect: "manual", headers: { origin: base } });
+  };
+  const good = await submit(demoEmail("aicte.admin"), DEMO_PASSWORD);
+  const cookies = good.headers.getSetCookie().filter((c) => c.startsWith("sb-"));
+  check("login form signs in and redirects to the role's portal", good.status === 303 && good.headers.get("location") === "/aicte", `${good.status} ${good.headers.get("location")}`);
+  check("session cookies are httpOnly", cookies.length > 0 && cookies.every((c) => /httponly/i.test(c)), `${cookies.length} cookie(s)`);
+  const staff = await submit(demoEmail("student1"), DEMO_PASSWORD);
+  check("a student is sent to the student portal", staff.headers.get("location") === "/student", String(staff.headers.get("location")));
+  const bad = await submit(demoEmail("aicte.admin"), "wrong-password");
+  check("a wrong password does not sign in", bad.status === 200 && !bad.headers.getSetCookie().some((c) => c.startsWith("sb-")) && /did not match/.test(await bad.text()), String(bad.status));
+}
+
 async function basePages() {
   console.log("Pages");
-  await pages(null, ["/", "/login", "/docs/rules"]);
+  await pages(null, ["/", "/login", "/docs/rules", "/verify", "/transparency", "/privacy", "/docs", "/portal-demo", "/signup"]);
+  check("landing page discloses simulated integrations", /Simulated integrations/.test((await call(null, "/")).text));
+  check("login shows the demo logins", /Demo logins/.test((await call(null, "/login")).text));
   await pages("admin.deccan", ["/institution", "/institution/upload", "/institution/students", "/institution/students/new", "/institution/issues", "/institution/history", "/search?q=Ananya"]);
   await pages("aicte.admin", ["/aicte", "/aicte?state=Telangana&level=UG", "/aicte/alerts", "/aicte/quota", "/aicte/duplicates", "/search?q=abcdef"]);
+  await loginForm();
   const dash = await call("aicte.admin", "/aicte");
   check("dashboard shows the national KPIs", /Institutions reporting/.test(dash.text) && /22 \/ 24|22<!-- --> \/ <!-- -->24/.test(dash.text));
   check("quota audit lists Vindhya", /Vindhya College/.test((await call("aicte.admin", "/aicte/quota")).text));
@@ -59,7 +85,7 @@ async function basePages() {
   check("signed-out user is redirected to login", (await call(null, "/institution")).status === 307);
 }
 
-const SECTIONS: Record<string, () => Promise<void>> = { pages: basePages, upload, verify: verification, security, marks, reports, ai };
+const SECTIONS: Record<string, () => Promise<void>> = { pages: basePages, upload, verify: verification, security, marks, reports, ai, scenarios };
 
 async function main() {
   loadEnv();

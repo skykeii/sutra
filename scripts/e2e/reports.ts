@@ -87,6 +87,9 @@ export async function reports() {
   const used = await call(null, "/api/v1/students/900000000009/verify", undefined, { ...header(verKey), "x-consent-token": seededUsed });
   check("used consent is refused", used.status === 403, String(used.status));
 
+  const { data: lastCall } = await db.from("audit_log").select("meta").eq("action", "api.call").ilike("meta->>path", "%/verify").order("seq", { ascending: false }).limit(1).single();
+  check("audit path hides the APAAR ID", JSON.stringify(lastCall?.meta).includes("{apaar_id}") && !JSON.stringify(lastCall?.meta).includes("900000000009"), JSON.stringify(lastCall?.meta));
+
   const revoke = await db.from("api_keys").select("id").eq("name", "ERP test").limit(1).single();
   check("key can be revoked", (await call("admin.deccan", "/api/app/keys", { action: "revoke", id: revoke.data!.id })).status === 200);
   check("revoked key stops working", (await call(null, `/api/v1/programs/${deccanEce}/intake-status`, undefined, header(instKey))).status === 401);

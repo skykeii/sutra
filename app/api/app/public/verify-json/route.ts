@@ -13,6 +13,6 @@ export const POST = route(async (req) => {
   if (typeof vc !== "object" || vc === null || !vc.proof) throw new ApiError(400, "NOT_A_CREDENTIAL", "This does not look like a Sutra credential.");
   const admin = createAdminSupabase();
   const result = await checkUploaded(admin, vc);
-  await appendAudit(admin, { actorRole: "public", action: "credential.verify", entity: "credential", entityId: result.recordId.slice(0, 60), meta: { verdict: result.verdict, source: "json" } });
+  await appendAudit(admin, { actorRole: "public", action: "credential.verify", entity: "credential", entityId: result.verdict === "VALID" || result.verdict === "REVOKED" || result.verdict === "EXPIRED" ? result.recordId : null, meta: { verdict: result.verdict, source: "json" } });
   return NextResponse.json(result);
 });
