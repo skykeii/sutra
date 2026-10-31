@@ -49,3 +49,46 @@ Also on `/portal-demo`: **Sneha** gets a verified answer with minimal fields, **
 - Maker-checker: propose as `aicte.admin`, approve as `aicte.admin2`. One intake change is already waiting at **Approvals**.
 - After Scenario 1 the Deccan college has an open OVER_QUOTA alert, so its students are denied scholarships until AICTE resolves it. `npm run demo:reset` clears this.
 - A student's consent code lasts 5 minutes, and each student can request 5 codes an hour.
+
+## Acceptance checklist results
+
+Run on 2026-11-02 against a production build (`next build` and `next start`) and the real Supabase project. The evidence is `npm run e2e` (8 sections, data reset before each), `npm run smoke` and `npm run test`. Together they made more than 400 checks with none failing, including 80 unit tests.
+
+**How the screens were tested.** Signed-in pages were tested over HTTP with real session cookies, checking status and page content. Nobody has clicked through them in a browser, because the automated browser was not used to sign in to the hosted Supabase project. Public pages were also loaded in a browser. Items marked **Partly** say what is still open.
+
+| Item | Result | Evidence and limits |
+|---|---|---|
+| `npm run dev` works from a clean clone after setup; seed and smoke pass | **Partly** | `npm run setup`, `seed` and `smoke` pass in this project. A fresh `git clone` installs, typechecks, passes unit tests and builds, and setup gives plain messages for a missing env file or `DATABASE_URL`. The full setup was not run inside the clone, to avoid copying your secrets |
+| Each of the 10 requirements works (routes in README) | **Partly** | R1 to R10 are covered by HTTP and API tests and mapped in `README.md`. See the open items below for what was not used by hand |
+| RLS proves cross-institution isolation | **Pass** | `scripts/rls-test.ts`: reads, writes and deletes are blocked for colleges, universities, students, verifiers, the portal and anonymous visitors |
+| No raw PII in logs, audit meta, validation issues or AI prompts | **Partly** | Stored issues and alerts are clean, and prompts hold only catalog text, the officer's question and aggregates. **Four audit entries (seq 446, 447, 501, 502) hold a synthetic APAAR ID in an API path**, written before this was fixed. The log is append-only, so they remain; a fresh Supabase project will not have them. `npm run smoke` lists them and fails on any new one. Server logs were not separately scanned; the code logs only route paths and error names |
+| Duplicate detection uses only keyed hashes; institution B cannot see A | **Pass** | Matching uses HMAC hashes, a live upload gets only the generic notice, and column grants hide who created a student |
+| Over-intake upload triggers a live AICTE alert without refresh | **Partly** | A real Realtime subscription with an AICTE token received the alert during an upload, while another college's token received nothing. The dashboard component that shows it has not been watched in a browser |
+| Verify page shows VALID, TAMPERED and REVOKED; signature check needs only the public key | **Pass** | Tested over HTTP and in a browser (Fake QR test shows TAMPERED) |
+| Audit check passes; tamper detected at the exact entry; restore works | **Pass** | Tamper at entry 50 reports entry 50, and restore brings the chain back to intact |
+| Scholarship denies mismatched marks and returns only minimal fields | **Pass** | Marks mismatch, detained and duplicate claim are all denied; success returns exactly 7 fields |
+| Ask the Data answers at least 8 example questions through the catalog only | **Pass, keyword mode** | All 15 catalog examples are answered and a SQL attempt runs nothing. No `ANTHROPIC_API_KEY` is set, so **the live Claude path has never run**; only its fallback has |
+| Every simulated integration is labelled | **Pass** | APAAR and all three integrations on the landing page, DigiLocker chip, SMS inbox, and portal page banner |
+
+### Not yet exercised
+
+Try these by hand before presenting:
+
+- Clicking through the upload wizard, charts, India map and toast in a signed-in browser
+- MFA enrolment with an authenticator app, and `DEMO_MODE=false` enforcement
+- Hitting the login, OTP and verifier rate limits, and the bulk-lookup alert
+- Signed-in pages at phone width (public pages have no sideways scroll at 375 px)
+- Swagger "Try it out" with a real key
+- The Claude path, if you add an API key
+
+### Cut
+
+Scanning a QR with the camera. Verifiers paste the QR link or record ID instead. Nothing else in Sections 3 to 12 was cut.
+
+### Dependency audit
+
+`npm audit fix` without force changed nothing: 21 vulnerabilities remain (2 high, 17 moderate, 2 low, no critical), and each fix needs a breaking upgrade or does not exist.
+
+- **`xlsx` (high, no fix on npm):** prototype pollution and ReDoS. The app parses uploaded `.xlsx` files only in the uploader's own browser, and on the server it only writes files. Consider moving to SheetJS's own distribution before real use.
+- **`postcss` via `next` (high in the report):** a build-time dependency whose fix needs Next 16, which also removes the `next lint` this brief requires.
+- **The rest:** mostly `eslint` tooling and `swagger-ui-react` dependencies.
