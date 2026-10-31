@@ -1,0 +1,11 @@
+node_modules/
+.next/
+out/
+coverage/
+next-env.d.ts
+*.tsbuildinfo
+.vercel/
+
+# Secrets: only the example file is ever committed
+.env*
+!.env.example
