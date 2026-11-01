@@ -41,3 +41,8 @@
 - The audit trail records sensitive reads and every write, but not each ordinary dashboard page view, to keep the chain meaningful.
 - Four early audit entries (seq 446, 447, 501, 502) hold a synthetic APAAR ID in an API path, logged before the path was redacted. The log is append-only, so they stay; `npm run smoke` lists them on every run and fails on any new one.
 - Public record lookups log an ID only if the record exists, so a mistyped APAAR ID never enters the audit log.
+- Baseline and final e2e leave out over-intake submits on the shared database (rule 5); the `upload` and `scenarios` sections gain a preview-only mode, with `E2E_ALLOW_INTAKE_WRITES=1` to run the old behaviour on a private database.
+- Vercel region is `bom1`, because the Supabase pooler host is `aws-0-ap-south-1` (Mumbai).
+- AICTE aggregates are cached 30 seconds under one key for all AICTE roles, since those totals are the same for every AICTE user, and are cleared after uploads, alerts and record verification; open alerts are never cached.
+- RLS policies were left unchanged, so slow pages gained explicit institution or university filters, and two plain counts use the admin client with an explicit owner filter.
+- The Next 15 middleware still calls `getUser` on each request, because it refreshes the session; `cache()` removes only the repeats within rendering.

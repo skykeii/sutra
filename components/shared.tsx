@@ -142,7 +142,7 @@ export function PageHeader({ title, description, actions }: { title: string; des
 
 export function Section({ title, description, actions, children }: { title: string; description?: string; actions?: ReactNode; children: ReactNode }) {
   return (
-    <Card>
+    <Card className="min-w-0">
       <CardHeader className="flex-row flex-wrap items-start justify-between gap-2">
         <div>
           <CardTitle className="text-base">{title}</CardTitle>
