@@ -38,7 +38,7 @@ test.describe("writes", () => {
 
   test("saving one student shows a confirmation and clears the form", async ({ page }) => {
     const rows = Papa.parse<Record<string, string>>(readFileSync(join(process.cwd(), "demo-files", "clean_upload.csv"), "utf8"), { header: true, skipEmptyLines: "greedy" }).data;
-    const row = rows[0]!;
+    const row = rows[11]!; // Other tests save the first rows of this file.
     await signIn(page, "admin.deccan", "/institution");
     await page.goto("/institution/students/new");
     await page.locator("#program").selectOption({ label: "B.Tech Electronics & Communication" });

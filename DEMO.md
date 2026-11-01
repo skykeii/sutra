@@ -72,16 +72,17 @@ Run on 2026-11-01 against a production build (`next build` and `next start`) and
 | Ask the Data answers at least 8 example questions through the catalog only | **Pass, keyword mode** | All 15 catalog examples are answered and a SQL attempt runs nothing. No `ANTHROPIC_API_KEY` is set, so **the live Claude path has never run**; only its fallback has |
 | Every simulated integration is labelled | **Pass** | APAAR, DigiLocker and ePASS on the landing page, plus the DigiLocker chip, SMS inbox and portal page banner |
 
+**Update after the fix round (see `FIXLOG.md`):** Playwright now drives real signed-in browsers through the upload wizard preview, the single-student form and the live alert toast, and all 32 signed-in pages fit at 375 px.
+
 ### Not yet exercised
 
 Try these by hand before presenting:
 
-- Clicking through the upload wizard, charts, India map and toast in a signed-in browser
+- Looking over the charts and India map in a signed-in browser (the tests check pages load and fit, not how charts look)
 - MFA enrolment with an authenticator app, and `DEMO_MODE=false` enforcement
 - Hitting the login, OTP and verifier rate limits, and the bulk-lookup alert
-- Signed-in pages at phone width (public pages have no sideways scroll at 375 px)
 - Swagger "Try it out" with a real key
-- The Claude path, if you add an API key
+- A real AI provider, once you add a key
 
 ### Cut
 

@@ -80,7 +80,8 @@ export async function rlsTest(check: Check): Promise<void> {
   check("Student sees only their own record", own.length === 1 && own[0]!.name === "Ananya Reddy");
   const consents = (await student.from("consents").select("student_id")).data ?? [];
   check("Student sees only their own consents", new Set(consents.map((c) => c.student_id)).size <= 1);
-  check("Student cannot read other students' results", ((await student.from("university_results").select("apaar_hash")).data ?? []).length <= 5);
+  const ownResults = (await student.from("university_results").select("apaar_hash")).data ?? [];
+  check("Student cannot read other students' results", new Set(ownResults.map((r) => r.apaar_hash)).size <= 1, `${ownResults.length} rows`);
   check("Student cannot read the audit log", await empty(student, "audit_log"));
 
   const verifier = await asUser("verifier.navayuga");

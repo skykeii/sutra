@@ -46,3 +46,12 @@
 - AICTE aggregates are cached 30 seconds under one key for all AICTE roles, since those totals are the same for every AICTE user, and are cleared after uploads, alerts and record verification; open alerts are never cached.
 - RLS policies were left unchanged, so slow pages gained explicit institution or university filters, and two plain counts use the admin client with an explicit owner filter.
 - The Next 15 middleware still calls `getUser` on each request, because it refreshes the session; `cache()` removes only the repeats within rendering.
+- `demo:reset` ran three times rather than once: twice as a clean starting point for the final checks and once at the very end, since tests that write data need it and the brief asks for the planted state at the finish.
+- `clean_upload.csv` on B.Tech CSE cannot reach 0 blocking errors, because 12 rows do not fit in CSE's 2 free seats and rule 3 forbids changing validation or planted data. It has 0 eligibility errors there and 0 errors of any kind on ECE, which is what it was generated for.
+- AI default checked 2026-11-01: `gemini-3.8-flash` is listed as stable with a free tier and shown in Google's OpenAI-compatible examples. It is set in `.env.example`.
+- No Groq default is set: Groq's docs list `llama-3.1-8b-instant` as a production instant model but tag it Enterprise, and do not state free-plan availability, so `AI_MODEL` must be chosen from Groq's list.
+- `AI_PROVIDER` must now be set to use AI, so an `ANTHROPIC_API_KEY` alone stays in offline mode, as the brief's default of `none` requires.
+- A rate limit (429) falls back at once without the retry; timeouts, network errors and 5xx get the one retry.
+- A failed model call stops further calls for that request or detection run, so an outage cannot stack up timeouts.
+- `explained_by` on `fraud_clusters` records who wrote each explanation, for the fraud page label.
+- Seeded credentials sign in `DEMO_PUBLIC_URL`, defaulting to the live demo, because `valid_credential.json` must not mention localhost. The Fake QR test button still changes the program field, since its on-screen text describes that.
