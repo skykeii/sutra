@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ActionButton } from "@/components/action-button";
 import { LiveRefresh } from "@/components/live";
 import { DataTable, FilterBar, firstParam, fmtDateTime, PageHeader, Section, StatusBadge } from "@/components/shared";
+import { aiLabel, type ProviderName } from "@/lib/ai/provider";
 import { requireRole } from "@/lib/auth/session";
 import { createServerSupabase } from "@/lib/supabase/server";
 
@@ -19,11 +20,12 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
   const status = firstParam(sp.status);
   const open = firstParam(sp.cluster);
   const supabase = await createServerSupabase();
-  let q = supabase.from("fraud_clusters").select("id, cluster_type, member_count, explanation, status, created_at, institution_id, member_ids, institutions(name)").order("member_count", { ascending: false });
+  let q = supabase.from("fraud_clusters").select("id, cluster_type, member_count, explanation, explained_by, status, created_at, institution_id, member_ids, institutions(name)").order("member_count", { ascending: false });
   if (status) q = q.eq("status", status);
   const { data } = await q;
   const rows = data ?? [];
   const cluster = rows.find((c) => c.id === open);
+  const explainedBy = rows.find((c) => c.explained_by)?.explained_by as ProviderName | undefined;
   const { data: members } = cluster?.member_ids.length
     ? await supabase.from("enrolments").select("id, student_id, enrolment_status, validation_status, institutions(name), programs(name)").in("student_id", cluster.member_ids.slice(0, 100))
     : { data: [] };
@@ -35,6 +37,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
           <ActionButton url="/api/app/fraud" body={{ action: "run" }} done="Detection finished"><ScanSearch className="h-4 w-4" aria-hidden />Run detection now</ActionButton>
         </span>
       } />
+      <p className="w-fit rounded-full border px-2.5 py-0.5 text-xs font-semibold" title="Who wrote the explanations below">{aiLabel(explainedBy ?? "none")}</p>
       <FilterBar action="/aicte/fraud" values={{ status }} fields={[{ name: "status", label: "Status", options: ["Open", "Under review", "Cleared", "Escalated"].map((v) => ({ value: v, label: v })) }]} />
       <DataTable rows={rows} rowKey={(r) => r.id} empty="No patterns found. Run detection to check again." columns={[
         { key: "type", header: "Pattern", render: (r) => <Link className="font-medium text-primary underline" href={`/aicte/fraud?cluster=${r.id}`}>{LABELS[r.cluster_type] ?? r.cluster_type}</Link> },

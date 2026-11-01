@@ -16,6 +16,8 @@ export async function ai() {
     check(`${entry.id} returns no personal data`, !/@example\.com|apaar_id|"mobile|"dob"|"email"/i.test(r.text));
   }
   check("at least 8 example questions are answered", answered >= 8, String(answered));
+  check("the answer carries an honest AI label", /^AI: /.test((await call("aicte.officer", "/api/app/ask", { question: CATALOG[0]!.example })).json?.aiLabel ?? ""));
+  check("the fraud page carries an AI label", /AI: /.test((await call("aicte.admin", "/aicte/fraud")).text));
 
   const off = await call("aicte.admin", "/api/app/ask", { question: "What is the weather today?" });
   check("unknown question gets the honest reply", off.json?.answered === false && /can't answer that yet/.test(off.json?.message) && off.json?.suggestions?.length > 0);

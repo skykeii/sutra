@@ -598,6 +598,7 @@ async function main() {
     status: "Open",
     created_at: daysAgo(3),
     member_ids: ghostMembers.filter((e) => e.student.mobile === mobile).map((e) => e.student.id),
+    explained_by: null,
     seeded: true,
   })));
 

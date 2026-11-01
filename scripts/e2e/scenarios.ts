@@ -47,18 +47,25 @@ export async function scenarios() {
   const college = await listen("admin.sabarmati", "alerts");
   check("1. AICTE live feed connects", aicte.ready);
   await sleep(1500);
-  const submit = await call("admin.deccan", "/api/app/upload", { programId: cse, fileName: "messy_upload.csv", rows, commit: true });
-  check("1. Upload adds 2 and holds back the rest", submit.json?.created === 2, `created ${submit.json?.created}`);
-  for (let i = 0; i < 30 && !aicte.events.length; i++) await sleep(500);
-  check("1. Live alert reaches AICTE with no refresh", aicte.events.some((e) => (e as { code: string }).code === "OVER_INTAKE"), `${aicte.events.length} live events`);
+  if (process.env.E2E_ALLOW_INTAKE_WRITES) {
+    const submit = await call("admin.deccan", "/api/app/upload", { programId: cse, fileName: "messy_upload.csv", rows, commit: true });
+    check("1. Upload adds 2 and holds back the rest", submit.json?.created === 2, `created ${submit.json?.created}`);
+    for (let i = 0; i < 30 && !aicte.events.length; i++) await sleep(500);
+    check("1. Live alert reaches AICTE with no refresh", aicte.events.some((e) => (e as { code: string }).code === "OVER_INTAKE"), `${aicte.events.length} live events`);
+    const meter = await call("admin.deccan", "/institution");
+    check("1. Intake meter shows 60 of 60 and the warning", /AICTE has been alerted/.test(meter.text) && /bg-red-600/.test(meter.text));
+    const { data: delivery } = await db.from("webhook_deliveries").select("ok").eq("event", "over_intake").eq("ok", true).limit(1).maybeSingle();
+    check("1. Webhook delivered", !!delivery);
+  } else {
+    // The same live path, using an alert that does not push a program against its intake.
+    await call("student4", "/api/app/marksheet", { semester: 4, claimed_pct: 78 });
+    for (let i = 0; i < 30 && !aicte.events.length; i++) await sleep(500);
+    check("1. Live alert reaches AICTE with no refresh", aicte.events.some((e) => (e as { code: string }).code === "MARKS_MISMATCH"), `${aicte.events.length} live events`);
+  }
   await sleep(2000);
   check("1. Another college receives no alert events", college.events.length === 0, `${college.events.length} events`);
   await aicte.client.removeAllChannels();
   await college.client.removeAllChannels();
-  const meter = await call("admin.deccan", "/institution");
-  check("1. Intake meter shows 60 of 60 and the warning", /AICTE has been alerted/.test(meter.text) && /bg-red-600/.test(meter.text));
-  const { data: delivery } = await db.from("webhook_deliveries").select("ok").eq("event", "over_intake").eq("ok", true).limit(1).maybeSingle();
-  check("1. Webhook delivered", !!delivery);
 
   // Scenario 2: student at two colleges.
   const issue = await call("admin.sabarmati", "/institution/issues?rule=CROSS_INST_DUP");

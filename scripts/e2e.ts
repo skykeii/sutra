@@ -31,6 +31,14 @@ async function upload() {
   const badType = await call("admin.deccan", "/api/app/upload", { programId: cse!.id, fileName: "malware.exe", rows: csvRows("clean_upload.csv") });
   check("non csv/xlsx file names are refused", badType.status === 400, String(badType.status));
 
+  const onCse = await call("admin.deccan", "/api/app/upload", { programId: cse!.id, fileName: "clean_upload.csv", rows: csvRows("clean_upload.csv") });
+  check("clean_upload.csv on full CSE has no eligibility errors, only seat limits", !onCse.json.stats.byRule.ELIGIBILITY_FAIL && Object.keys(onCse.json.stats.byRule).every((c) => c === "OVER_INTAKE" || c === "OVER_QUOTA"), JSON.stringify(onCse.json.stats.byRule));
+
+  // Submitting would push a planted program against its intake, so on a shared database this stops at preview.
+  if (!process.env.E2E_ALLOW_INTAKE_WRITES) {
+    console.log("(Skipping the over-intake submit. Set E2E_ALLOW_INTAKE_WRITES=1 on a private database.)");
+    return;
+  }
   const submit = await call("admin.deccan", "/api/app/upload", { programId: cse!.id, fileName: "messy_upload.csv", rows: csvRows("messy_upload.csv"), commit: true });
   check("submit saves only admissible rows", submit.status === 200 && submit.json.created === 2, `created ${submit.json?.created}, blocked ${submit.json?.stats?.blockedRows}`);
   const { data: alert } = await db.from("alerts").select("code").eq("code", "OVER_INTAKE").eq("seeded", false).limit(1).maybeSingle();

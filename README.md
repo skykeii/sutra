@@ -88,13 +88,37 @@ npm run demo:reset
 | `npm run demo:reset` | Removes anything created during a demo and restores seeded rows |
 | `npm run test` | Unit tests: validation rules, crypto, hash chain, HMAC matching, Ask the Data, fraud |
 | `npm run smoke` | Seed counts, validation on `messy_upload.csv`, sign and verify, chain check, PII scan, RLS test |
-| `npm run e2e` | HTTP tests of every page and flow. Needs the app running, and works best after `demo:reset` |
+| `npm run e2e` | HTTP tests of every page and flow. Needs the app running, and works best after `demo:reset`. It stops uploads at preview unless `E2E_ALLOW_INTAKE_WRITES=1`, for a private database |
+| `npm run e2e:ui` | Browser tests with Playwright. Needs the app running and `npx playwright install chromium`, and skips with a message if Chromium is missing. `E2E_ALLOW_WRITES=1` adds the tests that write data |
+| `node scripts/mobile-overflow.mjs` | Checks every signed-in page for sideways scrolling at 375 px |
+| `npm run measure` | Times the slowest signed-in pages against a running app |
+
+## Enabling the free AI provider
+
+AI is optional. With nothing set, Ask the Data and the fraud page run in offline mode, using a keyword matcher and templates.
+
+1. Get a key from [Google AI Studio](https://aistudio.google.com/) or the [Groq console](https://console.groq.com/).
+2. Add these to `.env.local` and to your Vercel environment variables. For Groq, use `AI_PROVIDER=groq`, `GROQ_API_KEY` and a model from its current list.
+
+   ```bash
+   AI_PROVIDER=gemini
+   AI_MODEL=gemini-3.8-flash
+   GEMINI_API_KEY=your-key
+   ```
+
+3. Restart the app, or redeploy on Vercel.
+
+`AI_PROVIDER=anthropic` with `ANTHROPIC_API_KEY` also works. Ask the Data and the fraud page show `AI: <provider>` when the model answered and `AI: offline mode` when the fallback did. Any error, timeout, rate limit or invalid reply falls back silently. The model only ever chooses from the approved query catalog and sees totals, never student data.
+
+## Deployment region
+
+`vercel.json` runs functions in Mumbai (`bom1`), next to the Supabase project. This only takes effect on the deployed site. If your Supabase project is elsewhere, choose the nearest Vercel region.
 
 ## Design notes
 
 - **Security.** Row-level security on every table, deny by default. Keyed HMAC-SHA256 for all cross-institution matching. AES-256-GCM for mobile, email, passport and APAAR ID. Ed25519 for credentials, receipts, result batches and audit anchors. Two-person approval for intake changes, revocations and verifier approvals. See `DECISIONS.md`.
 - **Tamper-evident audit.** `append_audit()` hash-chains every entry under an advisory lock; triggers block update, delete and truncate. Daily signed anchors are public at `/transparency`.
 - **Isolated validation.** `validateBatch` is a pure function that gets only the rows and the lookups it is handed, with no database or secrets. It runs in one serverless invocation per request today, and that boundary lets it move into containerised workers at national scale.
-- **AI.** Claude is optional (`ANTHROPIC_API_KEY`). It only picks from a fixed catalog of approved queries and writes summaries from aggregates. Without a key, a keyword matcher and templates take over.
+- **AI.** Optional, through one entry point (`lib/ai/provider.ts`). A model only picks from a fixed catalog of approved queries and writes summaries from aggregates. Without a provider, a keyword matcher and templates take over.
 - **Simulated integrations.** `lib/adapters/` holds the APAAR, DigiLocker and ePASS adapters. Each has a one-line note on what the real integration would swap in.
 - **Going live.** Set `DEMO_MODE=false` to enforce MFA for AICTE admins, hide demo logins and turn off the tamper controls, and move the anchor to a daily schedule. For production, drop `demo_tamper_audit` and `demo_restore_audit`.

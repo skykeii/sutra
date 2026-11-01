@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { callClaude } from "@/lib/ai/client";
+import { activeProvider, callModel } from "@/lib/ai/provider";
 import { appendAudit } from "@/lib/audit";
 import { sha256Hex } from "@/lib/crypto";
 import { fetchAll } from "@/lib/db";
@@ -100,14 +100,13 @@ export function templateExplanation(c: DetectedCluster): string {
   }
 }
 
-async function explain(admin: SupabaseClient, c: DetectedCluster): Promise<string> {
-  const ai = await callClaude(admin, {
+async function explain(admin: SupabaseClient, c: DetectedCluster): Promise<string | null> {
+  return callModel(admin, {
     templateId: "fraud.explain.v1",
     system: "Explain in one or two plain sentences why this pattern deserves a human review. It is a lead, not proof of fraud. Use only the counts provided.",
     user: JSON.stringify({ pattern: c.cluster_type, ...c.facts }),
     maxTokens: 500,
   });
-  return ai ?? templateExplanation(c);
 }
 
 export async function runDetection(admin: SupabaseClient, actor: { id: string; role: string }): Promise<{ clusters: number; byType: Record<string, number> }> {
@@ -128,10 +127,15 @@ export async function runDetection(admin: SupabaseClient, actor: { id: string; r
     }),
   });
   const byType: Record<string, number> = {};
+  const provider = activeProvider();
+  // After one failure the rest use templates, so a provider outage cannot stall the button.
+  let modelUp = provider !== "none";
   for (const c of clusters) {
     byType[c.cluster_type] = (byType[c.cluster_type] ?? 0) + 1;
     // Status stays out of the upsert, so a re-run never reopens a case someone has reviewed.
-    const { error } = await admin.from("fraud_clusters").upsert({ cluster_type: c.cluster_type, key_hash: c.key_hash, member_count: c.member_count, institution_id: c.institution_id, member_ids: c.member_ids, explanation: await explain(admin, c) }, { onConflict: "cluster_type,key_hash" });
+    const ai = modelUp ? await explain(admin, c) : null;
+    if (!ai) modelUp = false;
+    const { error } = await admin.from("fraud_clusters").upsert({ cluster_type: c.cluster_type, key_hash: c.key_hash, member_count: c.member_count, institution_id: c.institution_id, member_ids: c.member_ids, explanation: ai ?? templateExplanation(c), explained_by: ai ? provider : null }, { onConflict: "cluster_type,key_hash" });
     if (error) throw new Error(error.message);
   }
   await appendAudit(admin, { actorId: actor.id, actorRole: actor.role, action: "fraud.detect", entity: "fraud_cluster", meta: { clusters: clusters.length, by_type: byType } });

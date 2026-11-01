@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 
 interface Answer {
   answered: boolean;
+  aiLabel?: string;
   message?: string;
   suggestions?: string[];
   title?: string;
@@ -19,7 +20,7 @@ interface Answer {
   chart?: { x: string; y: string };
 }
 
-export function AskBox({ examples, aiOn }: { examples: string[]; aiOn: boolean }) {
+export function AskBox({ examples, provider }: { examples: string[]; provider: string }) {
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState<Answer | null>(null);
   const [error, setError] = useState("");
@@ -49,7 +50,8 @@ export function AskBox({ examples, aiOn }: { examples: string[]; aiOn: boolean }
         <Button type="submit" disabled={busy}><Send className="h-4 w-4" aria-hidden />{busy ? "Thinking…" : "Ask"}</Button>
       </form>
       <div><p className="mb-2 text-sm font-medium">Example questions</p>{chips(examples)}</div>
-      <p className="text-xs text-muted-foreground">{aiOn ? "Claude picks a question from a fixed list of approved queries and sees only totals." : "Running in keyword mode: no AI key is set, so questions are matched to approved queries by their words."} It cannot write its own queries or see student records.</p>
+      <p className="text-xs text-muted-foreground">{provider === "none" ? "Offline mode: no AI provider is set up, so questions are matched to approved queries by their words." : `${provider} picks from a fixed list of approved queries and sees only totals. If it is unavailable, questions are matched by their words instead.`} It cannot write its own queries or see student records.</p>
+      {answer?.aiLabel && <p className="w-fit rounded-full border px-2.5 py-0.5 text-xs font-semibold">{answer.aiLabel}</p>}
       {error && <p role="alert" className="rounded-md bg-red-50 p-3 text-sm text-red-900">{error}</p>}
       {answer && !answer.answered && (
         <div className="space-y-2 rounded-md border bg-amber-50 p-3">
