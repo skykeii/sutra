@@ -38,6 +38,8 @@ async function main() {
 
   const { data: batches } = await db.from("upload_batches").select("id").eq("seeded", false);
   for (const part of chunked((batches ?? []).map((b) => b.id))) await clear("enrolments", (q) => q.in("upload_batch_id", part));
+  // Seeded rows either point at a seeded batch or are earlier PassedOut diplomas, so anything else came from testing.
+  await clear("enrolments", (q) => q.is("upload_batch_id", null).neq("enrolment_status", "PassedOut"));
   await clear("upload_batches", notSeeded);
 
   const { data: resultBatches } = await db.from("university_result_batches").select("id").eq("seeded", false);

@@ -65,6 +65,17 @@ async function main() {
     console.log(`• ${table}: ${rows.length}`);
   }
 
+  async function pruneTo(table: string, keep: { id: string }[]) {
+    const wanted = new Set(keep.map((r) => r.id));
+    const { data, error } = await db.from(table).select("id");
+    if (error) throw new Error(`Reading ${table} failed: ${error.message}`);
+    for (const part of chunks((data ?? []).map((r) => r.id as string).filter((id) => !wanted.has(id)), 200)) {
+      const { error: deleteError } = await db.from(table).delete().in("id", part);
+      if (deleteError) throw new Error(`Pruning ${table} failed: ${deleteError.message}`);
+      console.log(`• ${table}: removed ${part.length} row(s) not in the seed`);
+    }
+  }
+
   faker.seed(2026);
   fakerEN_IN.seed(2026);
   const f = fakerEN_IN;
@@ -372,9 +383,16 @@ async function main() {
     const sum = p.matrix.CONVENOR + p.matrix.NON_CONVENOR + p.matrix.NRI + p.matrix.LATERAL;
     if (sum !== p.intake) throw new Error(`Seat matrix for ${p.instCode}:${p.code} sums to ${sum}, intake is ${p.intake}`);
   }
-  await upsert("seat_matrix", programs.flatMap((p) => (Object.keys(p.matrix) as Quota[]).map((q) => ({ id: uid("seat", p.id, q), program_id: p.id, quota_type: q, seats_allowed: p.matrix[q] }))));
-  await upsert("quota_labels", QUOTA_LABELS.map((l) => ({ id: uid("quota-label", l.state, l.quota), state: l.state, quota_type: l.quota, label: l.label })));
-  await upsert("eligibility_rules", ELIGIBILITY_DEFAULTS.map((r) => ({ id: uid("eligibility", r.level, r.rule_type), level: r.level, rule_type: r.rule_type, params: r.params })));
+  // Editable config is pruned to the seeded rows first, so a manually added rule cannot survive a reset.
+  const seatRows = programs.flatMap((p) => (Object.keys(p.matrix) as Quota[]).map((q) => ({ id: uid("seat", p.id, q), program_id: p.id, quota_type: q, seats_allowed: p.matrix[q] })));
+  const labelRows = QUOTA_LABELS.map((l) => ({ id: uid("quota-label", l.state, l.quota), state: l.state, quota_type: l.quota, label: l.label }));
+  const ruleRows = ELIGIBILITY_DEFAULTS.map((r) => ({ id: uid("eligibility", r.level, r.rule_type), level: r.level, rule_type: r.rule_type, params: r.params }));
+  await pruneTo("seat_matrix", seatRows);
+  await pruneTo("quota_labels", labelRows);
+  await pruneTo("eligibility_rules", ruleRows);
+  await upsert("seat_matrix", seatRows);
+  await upsert("quota_labels", labelRows);
+  await upsert("eligibility_rules", ruleRows);
   await upsert("mock_apaar_registry", [...demoPeople, ...generic].map((p) => ({ id: uid("registry", p.apaar), apaar_id: p.apaar, name: p.name, dob: p.dob, gender: p.gender })));
 
   // ---------- Auth users ----------
