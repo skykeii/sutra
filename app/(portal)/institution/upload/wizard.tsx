@@ -74,11 +74,12 @@ export function UploadWizard({ programs }: { programs: ProgramOption[] }) {
   };
   const plain = (list: NumberedRow[]) => list.map((row) => Object.fromEntries(CSV_COLUMNS.map((c) => [c, row[c]])));
 
-  const validate = async (list: NumberedRow[], updates = updateApaars) => {
+  // setFileName only takes effect on the next render, so a new file's name must be passed in.
+  const validate = async (list: NumberedRow[], updates = updateApaars, name = fileName) => {
     setBusy(true);
     setError("");
     try {
-      const json = await call({ programId, fileName, rows: plain(list), updateApaars: updates });
+      const json = await call({ programId, fileName: name, rows: plain(list), updateApaars: updates });
       setIssues(json.issues);
       setStats(json.stats);
       setStep(3);
@@ -101,7 +102,7 @@ export function UploadWizard({ programs }: { programs: ProgramOption[] }) {
       setUndo([]);
       setUpdateApaars([]);
       setFilter("");
-      await validate(numbered, []);
+      await validate(numbered, [], file.name);
     } catch (e) {
       setError((e as Error).message);
     }

@@ -17,6 +17,8 @@
     "demo:reset": "tsx scripts/demo-reset.ts",
     "smoke": "tsx scripts/smoke.ts",
     "e2e": "tsx scripts/e2e.ts",
+    "e2e:ui": "node scripts/e2e-ui.mjs",
+    "measure": "tsx scripts/measure-pages.ts",
     "test": "vitest run"
   },
   "dependencies": {
@@ -45,6 +47,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.7",
     "@faker-js/faker": "^10.6.0",
+    "@playwright/test": "^1.64.1",
     "@types/node": "^26.6.6",
     "@types/papaparse": "^5.5.2",
     "@types/pg": "^8.23.1",
