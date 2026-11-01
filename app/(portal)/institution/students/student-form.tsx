@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,12 +25,18 @@ export function StudentForm({ programs, initial, programId, editing }: { program
   const [row, setRow] = useState(initial);
   const [program, setProgram] = useState(programId ?? programs[0]?.id ?? "");
   const [issues, setIssues] = useState<Issue[]>([]);
-  const [error, setError] = useState("");
+  const [toast, setToast] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 6000);
+    return () => clearTimeout(timer);
+  }, [toast]);
 
   const send = async (commit: boolean) => {
     setBusy(true);
-    setError("");
+    setToast(null);
     try {
       const res = await fetch("/api/app/upload", {
         method: "POST",
@@ -40,12 +46,20 @@ export function StudentForm({ programs, initial, programId, editing }: { program
       const json = await res.json();
       if (!res.ok) throw new Error(json.error?.message ?? "This record could not be checked.");
       setIssues(json.issues);
-      if (commit && json.stats.blockedRows === 0) {
-        router.push("/institution/students");
+      if (commit) {
+        if (json.stats.blockedRows > 0) {
+          const first = (json.issues as Issue[]).find((i) => i.severity === "Error");
+          throw new Error(first ? `Not saved. ${first.message}` : "This record could not be saved.");
+        }
+        setToast({ ok: true, text: "Student saved" });
+        if (!editing) {
+          setRow(initial);
+          setIssues([]);
+        }
         router.refresh();
       }
     } catch (e) {
-      setError((e as Error).message);
+      setToast({ ok: false, text: (e as Error).message });
     } finally {
       setBusy(false);
     }
@@ -75,7 +89,6 @@ export function StudentForm({ programs, initial, programId, editing }: { program
           </div>
         ))}
       </div>
-      {error && <p role="alert" className="rounded-md bg-red-50 p-3 text-sm text-red-900">{error}</p>}
       {issues.length > 0 && (
         <ul className="space-y-2 rounded-md border bg-card p-3 text-sm">
           {issues.map((i, n) => (
@@ -90,6 +103,11 @@ export function StudentForm({ programs, initial, programId, editing }: { program
         <Button variant="outline" disabled={busy} onClick={() => send(false)}>Check</Button>
         <Button disabled={busy || blocked} onClick={() => send(true)}>{busy ? "Saving…" : "Save record"}</Button>
       </div>
+      {toast && (
+        <div role={toast.ok ? "status" : "alert"} className={`fixed bottom-4 right-4 z-50 max-w-sm rounded-lg border-l-4 bg-card p-4 font-medium shadow-xl ${toast.ok ? "border-emerald-600 text-emerald-900" : "border-red-600 text-red-900"}`}>
+          {toast.text}
+        </div>
+      )}
     </div>
   );
 }
