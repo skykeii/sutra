@@ -55,6 +55,14 @@ export async function verification() {
   const pdf = await call("student1", "/api/app/credentials/SUTRA-DEMO-VALID/pdf");
   check("credential PDF downloads for its owner", pdf.status === 200 && pdf.type.includes("pdf"));
   check("another student cannot download it", (await call("student3", "/api/app/credentials/SUTRA-DEMO-VALID/pdf")).status === 404);
+  const json = await call("student1", "/api/app/credentials/SUTRA-DEMO-VALID/json");
+  check("credential JSON downloads for its owner", json.status === 200 && /sutra-credential-SUTRA-DEMO-VALID\.json/.test(json.headers.get("content-disposition") ?? ""));
+  check("another student cannot download the JSON", (await call("student3", "/api/app/credentials/SUTRA-DEMO-VALID/json")).status === 404);
+  check("a signed-out visitor cannot download the JSON", (await call(null, "/api/app/credentials/SUTRA-DEMO-VALID/json")).status === 401);
+  check("downloaded JSON verifies as VALID", (await call(null, "/api/app/public/verify-json", json.json)).json?.verdict === "VALID");
+  const edited = structuredClone(json.json);
+  edited.credentialSubject.institution = `${edited.credentialSubject.institution.slice(0, -1)}x`;
+  check("changing one letter shows TAMPERED", (await call(null, "/api/app/public/verify-json", edited)).json?.verdict === "TAMPERED");
   check("DigiLocker push is simulated", (await call("student1", "/api/app/student/digilocker", { recordId: "SUTRA-DEMO-VALID" })).json?.simulated === true);
 
   const { data: clean } = await db.from("enrolments").select("id").eq("validation_status", "Clean").eq("enrolment_status", "Active").limit(1).single();

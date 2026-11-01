@@ -52,6 +52,7 @@ export default async function Page() {
                   <p className="text-sm">Record <Link className="font-medium text-primary underline" href={`/verify/${e.cred.record_id}`}>{e.cred.record_id}</Link> <StatusBadge status={e.cred.status} /></p>
                   <div className="flex flex-wrap items-center gap-2">
                     <Button asChild variant="outline" size="sm"><a href={`/api/app/credentials/${e.cred.record_id}/pdf`}><Download className="h-4 w-4" aria-hidden />Download credential</a></Button>
+                    <Button asChild variant="outline" size="sm"><a href={`/api/app/credentials/${e.cred.record_id}/json`}><Download className="h-4 w-4" aria-hidden />Download credential (JSON)</a></Button>
                     {pushedSet.has(e.cred.record_id)
                       ? <span className="text-sm">Added to DigiLocker</span>
                       : <ActionButton size="sm" variant="outline" url="/api/app/student/digilocker" body={{ recordId: e.cred.record_id }} disabled={e.cred.status !== "Valid"}>Add to DigiLocker (simulated)</ActionButton>}
