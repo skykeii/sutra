@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { DataTable, ExportMenu, FilterBar, firstParam, PageHeader, Section } from "@/components/shared";
+import { DataTable, ExportMenu, FilterBar, firstParam, Pager, PageHeader, Section } from "@/components/shared";
 import { requireRole } from "@/lib/auth/session";
 import { createServerSupabase } from "@/lib/supabase/server";
 
@@ -9,6 +9,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
   await requireRole(["aicte_admin", "aicte_officer"]);
   const sp = await searchParams;
   const state = firstParam(sp.state);
+  const page = Math.max(1, Number(firstParam(sp.page)) || 1);
   const supabase = await createServerSupabase();
   const [quotas, institutions, noAllotment, labels] = await Promise.all([
     supabase.from("v_quota_status").select("*"),
@@ -45,7 +46,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
         ]} />
       </Section>
       <Section title="All quotas, fullest first">
-        <div className="max-h-96 overflow-auto"><DataTable rows={rows} rowKey={(r) => `${r.program_id}${r.quota_type}`} columns={columns} /></div>
+        <DataTable rows={rows.slice((page - 1) * 50, page * 50)} rowKey={(r) => `${r.program_id}${r.quota_type}`} columns={columns} />
+        <Pager page={page} hasNext={rows.length > page * 50} path="/aicte/quota" query={{ state }} />
       </Section>
     </div>
   );

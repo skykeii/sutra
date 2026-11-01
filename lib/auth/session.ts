@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { ROLE_HOME, type AppRole } from "@/lib/auth/roles";
 import { createServerSupabase } from "@/lib/supabase/server";
@@ -14,7 +15,8 @@ export interface SessionProfile {
   portalId: string | null;
 }
 
-export async function getSessionProfile(): Promise<SessionProfile | null> {
+// cache() makes the layout and the page share one lookup within a request.
+export const getSessionProfile = cache(async (): Promise<SessionProfile | null> => {
   const supabase = await createServerSupabase();
   const {
     data: { user },
@@ -36,7 +38,7 @@ export async function getSessionProfile(): Promise<SessionProfile | null> {
     verifierOrgId: data.verifier_org_id,
     portalId: data.portal_id,
   };
-}
+});
 
 /** AICTE admins need a second factor, except in demo mode where the portal shows a banner instead. */
 export async function mfaSatisfied(profile: SessionProfile): Promise<boolean> {

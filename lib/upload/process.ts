@@ -3,6 +3,7 @@ import { z } from "zod";
 import { apaarAdapter } from "@/lib/adapters/apaar";
 import { raiseAlert } from "@/lib/alerts";
 import { appendAudit } from "@/lib/audit";
+import { invalidateAggregates } from "@/lib/cache-tags";
 import { encryptField, hmacMatch } from "@/lib/crypto";
 import { chunked, fetchAll } from "@/lib/db";
 import { ApiError } from "@/lib/http";
@@ -279,6 +280,7 @@ export async function processUpload(
   await appendAudit(admin, { ...auditBase, action: "upload.submit", entity: "upload_batch", entityId: batch.id, meta: { rows: rows.length, created, updated, blocked: result.stats.blockedRows, fixes_applied: input.fixes?.length ?? 0, fixes_by_rule: tally(input.fixes?.map((f) => f.code) ?? []) } });
   await appendAudit(admin, { ...auditBase, action: "validation.outcome", entity: "upload_batch", entityId: batch.id, meta: { rows: rows.length, errors: result.stats.errors, warnings: result.stats.warnings, by_rule: result.stats.byRule, stage: "submit" } });
 
+  invalidateAggregates();
   return { ...result, batchId: batch.id, created, updated };
 }
 

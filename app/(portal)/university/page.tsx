@@ -3,7 +3,7 @@ import Link from "next/link";
 import { DataTable, fmtDateTime, KpiCard, PageHeader, Section } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth/session";
-import { fetchAll } from "@/lib/db";
+import { chunked } from "@/lib/db";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { createServerSupabase } from "@/lib/supabase/server";
 
@@ -14,15 +14,20 @@ export default async function Page() {
   const supabase = await createServerSupabase();
   const [university, results, batches, summary] = await Promise.all([
     supabase.from("universities").select("name").eq("id", profile.universityId!).single(),
-    supabase.from("university_results").select("id", { head: true, count: "exact" }),
-    supabase.from("university_result_batches").select("id, file_name, semester, row_count, digest, created_at").order("created_at", { ascending: false }).limit(10),
+    createAdminSupabase().from("university_results").select("id", { head: true, count: "exact" }).eq("university_id", profile.universityId!),
+    supabase.from("university_result_batches").select("id, file_name, semester, row_count, digest, created_at").eq("university_id", profile.universityId!).order("created_at", { ascending: false }).limit(10),
     supabase.from("v_university_summary").select("*").maybeSingle(),
   ]);
   // Universities have no student-level access; only a count of checks against their own results leaves here.
   const admin = createAdminSupabase();
-  const hashes = new Set((await fetchAll<{ apaar_hash: string }>((from, to) => admin.from("university_results").select("apaar_hash").eq("university_id", profile.universityId!).range(from, to))).map((r) => r.apaar_hash));
   const { data: submissions } = await admin.from("marksheet_submissions").select("students(apaar_hash)");
-  const queries = (submissions ?? []).filter((s) => hashes.has((s.students as unknown as { apaar_hash: string }).apaar_hash)).length;
+  const asked = (submissions ?? []).map((s) => (s.students as unknown as { apaar_hash: string }).apaar_hash);
+  const hashes = new Set<string>();
+  for (const part of chunked([...new Set(asked)])) {
+    const { data } = await admin.from("university_results").select("apaar_hash").eq("university_id", profile.universityId!).in("apaar_hash", part);
+    data?.forEach((r) => hashes.add(r.apaar_hash));
+  }
+  const queries = asked.filter((h) => hashes.has(h)).length;
   return (
     <div className="space-y-5">
       <PageHeader title={university.data?.name ?? "University"} description="You are the source of truth for marks. Sutra compares claims against what you publish." actions={<Button asChild><Link href="/university/results"><Upload className="h-4 w-4" aria-hidden />Publish results</Link></Button>} />

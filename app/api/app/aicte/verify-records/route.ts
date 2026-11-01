@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { appendAudit } from "@/lib/audit";
 import { AICTE_ROLES, apiProfile } from "@/lib/auth/api";
+import { invalidateAggregates } from "@/lib/cache-tags";
 import { issueForEnrolment } from "@/lib/credentials/service";
 import { readJson, route } from "@/lib/http";
 import { createAdminSupabase } from "@/lib/supabase/admin";
@@ -19,5 +20,6 @@ export const POST = route(async (req) => {
     await appendAudit(admin, { actorId: profile.userId, actorRole: profile.role, action: "record.verify", entity: "enrolment", entityId: id });
     issued.push(await issueForEnrolment(admin, id, { id: profile.userId, role: profile.role }));
   }
+  invalidateAggregates();
   return NextResponse.json({ verified: issued.length, recordIds: issued });
 });

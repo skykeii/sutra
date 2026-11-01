@@ -1,9 +1,11 @@
 import { AlertTriangle, BadgeCheck, Building2, GitCompare, MessageCircleQuestion, ScanSearch, Users, Waypoints } from "lucide-react";
 import Link from "next/link";
-import { CategoryChart, IndiaTileMap, TrendChart, type StateMetric } from "@/components/charts";
+import type { StateMetric } from "@/components/charts";
+import { CategoryChart, IndiaTileMap, TrendChart } from "@/components/charts-lazy";
 import { LiveAlertFeed, LiveRefresh, type FeedAlert } from "@/components/live";
 import { DataTable, FilterBar, firstParam, fmtDateTime, KpiCard, PageHeader, Section, StatusBadge } from "@/components/shared";
 import { Button } from "@/components/ui/button";
+import { getAicteAggregates } from "@/lib/aicte-aggregates";
 import { requireRole } from "@/lib/auth/session";
 import { createServerSupabase } from "@/lib/supabase/server";
 
@@ -24,28 +26,20 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
   const quota = firstParam(sp.category);
   const supabase = await createServerSupabase();
 
-  const [states, intake, quotas, categories, submissions, alerts, matches, credentials, clusters, students, enrolTrend, alertTrend] = await Promise.all([
-    supabase.from("v_state_summary").select("*").order("state"),
-    supabase.from("v_intake_status").select("*"),
-    supabase.from("v_quota_status").select("program_id, quota_type, enrolled"),
-    supabase.from("v_category_summary").select("*").order("state"),
-    supabase.from("v_submission_status").select("*").order("institution_name"),
+  // Alerts stay outside the cache, so the count and the feed are always live.
+  const [aggregates, alerts] = await Promise.all([
+    getAicteAggregates(),
     supabase.from("alerts").select("id, code, severity, title, message, created_at", { count: "exact" }).eq("status", "Open").order("created_at", { ascending: false }).limit(15),
-    supabase.from("cross_matches").select("id", { head: true, count: "exact" }).eq("status", "Open"),
-    supabase.from("credentials").select("id", { head: true, count: "exact" }).eq("status", "Valid"),
-    supabase.from("fraud_clusters").select("id", { head: true, count: "exact" }).in("status", ["Open", "Under review"]),
-    supabase.from("students").select("id", { head: true, count: "exact" }),
-    supabase.from("v_enrolment_trend").select("*").order("day"),
-    supabase.from("v_alert_trend").select("*").order("day"),
   ]);
+  const { states, intake, quotas, categories, submissions, matches, credentials, clusters, students, enrolTrend, alertTrend } = aggregates;
 
-  const all = (intake.data ?? []) as IntakeRow[];
-  const submissionRows = submissions.data ?? [];
+  const all = intake as IntakeRow[];
+  const submissionRows = submissions;
   const reporting = submissionRows.filter((s) => s.has_submitted).length;
   const approved = all.reduce((sum, r) => sum + r.approved, 0);
   const enrolled = all.reduce((sum, r) => sum + r.enrolled_regular, 0);
 
-  const quotaCount = new Map((quotas.data ?? []).filter((q) => q.quota_type === quota).map((q) => [q.program_id, q.enrolled as number]));
+  const quotaCount = new Map(quotas.filter((q) => q.quota_type === quota).map((q) => [q.program_id, q.enrolled as number]));
   const filtered = all.filter((r) => (!state || r.state === state) && (!level || r.level === level) && (!year || r.academic_year === year) && (!program || r.program_name.toLowerCase().includes(program.toLowerCase())));
   const leagueMap = new Map<string, { id: string; name: string; state: string; approved: number; enrolled: number; supernumerary: number; over: number }>();
   for (const r of filtered) {
@@ -59,8 +53,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
   const league = [...leagueMap.values()].sort((a, b) => b.enrolled / b.approved - a.enrolled / a.approved);
   const over = filtered.filter((r) => r.enrolled_regular > r.approved);
   const days = new Map<string, { day: string; enrolments: number; alerts: number }>();
-  (enrolTrend.data ?? []).forEach((t) => days.set(t.day, { day: t.day, enrolments: t.enrolments, alerts: 0 }));
-  (alertTrend.data ?? []).forEach((t) => days.set(t.day, { day: t.day, enrolments: days.get(t.day)?.enrolments ?? 0, alerts: t.alerts }));
+  enrolTrend.forEach((t) => days.set(t.day, { day: t.day, enrolments: t.enrolments, alerts: 0 }));
+  alertTrend.forEach((t) => days.set(t.day, { day: t.day, enrolments: days.get(t.day)?.enrolments ?? 0, alerts: t.alerts }));
   const trend = [...days.values()].sort((a, b) => a.day.localeCompare(b.day));
   const fillPct = approved ? ((enrolled / approved) * 100).toFixed(1) : "0";
   const openAlerts = alerts.count ?? 0;
@@ -71,18 +65,18 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
       <PageHeader title="National dashboard" description="Live student-level data from approved institutions." actions={<LiveRefresh tables={["enrolments", "alerts", "cross_matches", "fraud_clusters", "upload_batches"]} />} />
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard label="Institutions reporting" value={`${reporting} / ${submissionRows.length}`} icon={Building2} />
-        <KpiCard label="Students recorded" value={(students.count ?? 0).toLocaleString("en-IN")} icon={Users} />
+        <KpiCard label="Students recorded" value={students.toLocaleString("en-IN")} icon={Users} />
         <KpiCard label="Seats filled nationally" value={`${fillPct}%`} hint={`${enrolled.toLocaleString("en-IN")} of ${approved.toLocaleString("en-IN")} approved seats`} icon={Waypoints} />
         <KpiCard label="Open alerts" value={openAlerts} tone={openAlerts ? "red" : "green"} icon={AlertTriangle} />
-        <KpiCard label="Cross-institution matches" value={matches.count ?? 0} hint="One student active at two institutions" tone={matches.count ? "amber" : "green"} icon={GitCompare} />
-        <KpiCard label="Fraud patterns open" value={clusters.count ?? 0} tone={clusters.count ? "amber" : "green"} icon={ScanSearch} />
-        <KpiCard label="Verified records" value={(credentials.count ?? 0).toLocaleString("en-IN")} tone="green" icon={BadgeCheck} />
+        <KpiCard label="Cross-institution matches" value={matches} hint="One student active at two institutions" tone={matches ? "amber" : "green"} icon={GitCompare} />
+        <KpiCard label="Fraud patterns open" value={clusters} tone={clusters ? "amber" : "green"} icon={ScanSearch} />
+        <KpiCard label="Verified records" value={credentials.toLocaleString("en-IN")} tone="green" icon={BadgeCheck} />
         <KpiCard label="Over-intake programs" value={all.filter((r) => r.enrolled_regular > r.approved).length} tone={all.some((r) => r.enrolled_regular > r.approved) ? "red" : "green"} icon={AlertTriangle} />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[1fr_24rem]">
         <Section title="India view" description={state ? `Focused on ${state}.` : "Seats filled or open alerts, by state."} actions={state ? <Button asChild variant="outline" size="sm"><Link href="/aicte">Clear state</Link></Button> : undefined}>
-          <IndiaTileMap data={(states.data ?? []) as StateMetric[]} selected={state} />
+          <IndiaTileMap data={states as StateMetric[]} selected={state} />
         </Section>
         <Section title="Live alert feed" description="New alerts appear here without a refresh.">
           <LiveAlertFeed initial={(alerts.data ?? []) as FeedAlert[]} />
@@ -93,7 +87,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
         action="/aicte"
         values={{ state, level, program, year, category: quota }}
         fields={[
-          { name: "state", label: "State", options: (states.data ?? []).map((s) => ({ value: s.state, label: s.state })) },
+          { name: "state", label: "State", options: states.map((s) => ({ value: s.state, label: s.state })) },
           { name: "level", label: "Level", options: ["UG", "PG", "Diploma", "PGDM"].map((v) => ({ value: v, label: v })) },
           { name: "program", label: "Program", placeholder: "e.g. CSE" },
           { name: "year", label: "Year", options: [...new Set(all.map((r) => r.academic_year))].map((v) => ({ value: v, label: v })) },
@@ -144,7 +138,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
             />
           </div>
         </Section>
-        <Section title="NRI, OCI and foreign national students"><CategoryChart data={categories.data ?? []} /></Section>
+        <Section title="NRI, OCI and foreign national students"><CategoryChart data={categories} /></Section>
         <Section title="Trend over the last 90 days"><TrendChart data={trend} /></Section>
       </div>
 

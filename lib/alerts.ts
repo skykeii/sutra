@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { appendAudit } from "@/lib/audit";
+import { invalidateAggregates } from "@/lib/cache-tags";
 import { fireWebhook, type WebhookEvent } from "@/lib/webhooks";
 
 export interface AlertInput {
@@ -25,6 +26,7 @@ export async function raiseAlert(admin: SupabaseClient, alert: AlertInput): Prom
     meta: alert.meta ?? {},
   });
   if (error) throw new Error(`Could not raise alert: ${error.message}`);
+  invalidateAggregates();
   await appendAudit(admin, { actorRole: "system", action: "alert.raise", entity: "alert", entityId: alert.code, meta: { rule_code: alert.code, institution_id: alert.institutionId ?? null } });
 
   const { data: staff } = await admin.from("profiles").select("user_id").in("role", ["aicte_admin", "aicte_officer"]);

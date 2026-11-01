@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { DataTable, fmtDateTime, KpiCard, PageHeader, PipelineStepper, Section, StatusBadge } from "@/components/shared";
+import { DataTable, firstParam, fmtDateTime, KpiCard, Pager, PageHeader, PipelineStepper, Section, StatusBadge } from "@/components/shared";
 import { requireRole } from "@/lib/auth/session";
 import { fetchAll } from "@/lib/db";
 import { createServerSupabase } from "@/lib/supabase/server";
@@ -8,9 +8,10 @@ import { RULE_BY_CODE } from "@/lib/validation/rules";
 export const metadata = { title: "Batch results" };
 const STEPS = ["Uploaded", "APAAR validated", "Rules checked", "Verified", "In AICTE repository"];
 
-export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+export default async function Page({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   await requireRole(["institution_admin", "institution_staff"]);
   const { id } = await params;
+  const page = Math.max(1, Number(firstParam((await searchParams).page)) || 1);
   const supabase = await createServerSupabase();
   const { data: batch } = await supabase.from("upload_batches").select("id, file_name, row_count, error_count, warning_count, status, created_at, programs(name)").eq("id", id).maybeSingle();
   if (!batch) notFound();
@@ -50,7 +51,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       </Section>
       <Section title="Issues" description="Stored without student values. See the error report from the upload for row details.">
         <DataTable
-          rows={issues.slice(0, 200)}
+          rows={issues.slice((page - 1) * 50, page * 50)}
           rowKey={(r) => r.id}
           empty="No issues in this batch."
           columns={[
@@ -60,6 +61,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             { key: "message", header: "What it means" },
           ]}
         />
+        <Pager page={page} hasNext={issues.length > page * 50} path={`/institution/history/${id}`} />
       </Section>
     </div>
   );

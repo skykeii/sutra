@@ -4,6 +4,7 @@ import { LiveRefresh } from "@/components/live";
 import { DataTable, fmtDateTime, KpiCard, Meter, PageHeader, Section, StatusBadge } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth/session";
+import { createAdminSupabase } from "@/lib/supabase/admin";
 import { createServerSupabase } from "@/lib/supabase/server";
 
 export const metadata = { title: "Institution dashboard" };
@@ -11,16 +12,18 @@ export const metadata = { title: "Institution dashboard" };
 export default async function Page() {
   const profile = await requireRole(["institution_admin", "institution_staff"]);
   const supabase = await createServerSupabase();
+  // These filters match what RLS already enforces. They let Postgres use an index instead of checking every row.
+  const own = profile.institutionId!;
   const [institution, intake, quotas, labels, issues, overIssues, awaiting, certificateReady, batches] = await Promise.all([
     supabase.from("institutions").select("name, state").eq("id", profile.institutionId!).single(),
-    supabase.from("v_intake_status").select("*").order("program_name"),
-    supabase.from("v_quota_status").select("*"),
+    supabase.from("v_intake_status").select("*").eq("institution_id", own).order("program_name"),
+    supabase.from("v_quota_status").select("*").eq("institution_id", own),
     supabase.from("quota_labels").select("state, quota_type, label"),
-    supabase.from("validation_issues").select("id", { head: true, count: "exact" }).eq("resolved", false),
-    supabase.from("validation_issues").select("batch_id, rule_code, upload_batches(program_id)").eq("rule_code", "OVER_INTAKE").eq("resolved", false),
-    supabase.from("enrolments").select("id", { head: true, count: "exact" }).in("validation_status", ["Clean", "Pending"]).eq("enrolment_status", "Active"),
-    supabase.from("credentials").select("id", { head: true, count: "exact" }).eq("status", "Valid"),
-    supabase.from("upload_batches").select("id, file_name, row_count, error_count, warning_count, status, created_at").order("created_at", { ascending: false }).limit(6),
+    supabase.from("validation_issues").select("id", { head: true, count: "exact" }).eq("institution_id", own).eq("resolved", false),
+    supabase.from("validation_issues").select("batch_id, rule_code, upload_batches(program_id)").eq("institution_id", own).eq("rule_code", "OVER_INTAKE").eq("resolved", false),
+    supabase.from("enrolments").select("id", { head: true, count: "exact" }).eq("institution_id", own).in("validation_status", ["Clean", "Pending"]).eq("enrolment_status", "Active"),
+    createAdminSupabase().from("credentials").select("id, enrolments!inner(institution_id)", { head: true, count: "exact" }).eq("enrolments.institution_id", own).eq("status", "Valid"),
+    supabase.from("upload_batches").select("id, file_name, row_count, error_count, warning_count, status, created_at").eq("institution_id", own).order("created_at", { ascending: false }).limit(6),
   ]);
   const state = institution.data?.state ?? "";
   const label = (q: string) => (labels.data ?? []).find((l) => l.state === state && l.quota_type === q)?.label ?? q.replace("_", "-");

@@ -14,9 +14,11 @@ export async function PortalShell({ profile, children }: { profile: SessionProfi
   const supabase = await createServerSupabase();
   const isAicte = profile.role === "aicte_admin" || profile.role === "aicte_officer";
   const canSearch = isAicte || profile.role === "institution_admin" || profile.role === "institution_staff";
-  const { data: notifications } = await supabase.from("notifications").select("id, title, body, link, read_at, created_at").order("created_at", { ascending: false }).limit(8);
+  const [{ data: notifications }, { data: integrity }] = await Promise.all([
+    supabase.from("notifications").select("id, title, body, link, read_at, created_at").order("created_at", { ascending: false }).limit(8),
+    isAicte ? supabase.from("app_cache").select("value").eq("key", "integrity").maybeSingle() : Promise.resolve({ data: null }),
+  ]);
   const unread = (notifications ?? []).filter((n) => !n.read_at).length;
-  const { data: integrity } = isAicte ? await supabase.from("app_cache").select("value").eq("key", "integrity").maybeSingle() : { data: null };
   const check = integrity?.value as { ok?: boolean; count?: number } | undefined;
 
   return (

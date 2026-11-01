@@ -3,7 +3,7 @@
 import { Send } from "lucide-react";
 import { useState } from "react";
 import { postJson } from "@/components/action-button";
-import { AutoChart } from "@/components/charts";
+import { AutoChart } from "@/components/charts-lazy";
 import { DataTable } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
