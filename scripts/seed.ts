@@ -50,6 +50,8 @@ async function main() {
   needEnv("FIELD_ENC_KEY");
   needEnv("ED25519_PRIVATE_KEY_PEM");
   const baseUrl = process.env.APP_BASE_URL ?? "http://localhost:3000";
+  // Signed into each credential, so it must be the public address, not whichever machine ran the seed.
+  const publicUrl = process.env.DEMO_PUBLIC_URL ?? "https://sutra-ochre.vercel.app";
   const db = adminClient();
 
   const probe = await db.from("universities").select("id", { head: true, count: "exact" });
@@ -700,7 +702,7 @@ async function main() {
       status: "Active",
       issuedAt,
       expiresAt,
-      baseUrl,
+      baseUrl: publicUrl,
     });
     return { enrolment: e, vc, recordId: recordIdOf(e), issuedAt, expiresAt };
   });
@@ -925,11 +927,12 @@ function writeDemoFiles({ deccanCseStudents, existingStudent, uploadPeople, vali
   }));
   writeFileSync(join(dir, "university_results.csv"), toCsv(["apaar_id", "semester", "percentage", "sgpa", "result_status"], results));
 
-  // Keeps the real signature but changes one field, so verification must report TAMPERED.
-  const forged = structuredClone(validCredential) as { credentialSubject: { program: string } };
-  forged.credentialSubject.program = "MBBS General Medicine";
+  writeFileSync(join(dir, "valid_credential.json"), `${JSON.stringify(validCredential, null, 2)}\n`);
+  // Keeps the real signature and changes exactly one letter, so verification must report TAMPERED.
+  const forged = structuredClone(validCredential) as { credentialSubject: { institution: string } };
+  forged.credentialSubject.institution = `${forged.credentialSubject.institution.slice(0, -1)}x`;
   writeFileSync(join(dir, "forged_credential.json"), `${JSON.stringify(forged, null, 2)}\n`);
-  console.log("• demo-files: clean_upload.csv, messy_upload.csv, university_results.csv, forged_credential.json");
+  console.log("• demo-files: clean_upload.csv, messy_upload.csv, university_results.csv, valid_credential.json, forged_credential.json");
 }
 
 runScript(main);

@@ -11,6 +11,9 @@ export async function verification() {
   check("revoked record shows REVOKED", /REVOKED/.test((await call(null, "/verify/SUTRA-DEMO-REVOKED")).text));
   const forged = await call(null, "/api/app/public/verify-json", JSON.parse(readFileSync(join(ROOT, "demo-files", "forged_credential.json"), "utf8")));
   check("forged file shows TAMPERED", forged.json?.verdict === "TAMPERED", forged.json?.verdict);
+  const demoFile = (name: string) => readFileSync(join(ROOT, "demo-files", name), "utf8");
+  check("valid_credential.json shows VALID", (await call(null, "/api/app/public/verify-json", JSON.parse(demoFile("valid_credential.json")))).json?.verdict === "VALID");
+  check("demo credential files do not mention localhost", !/localhost/.test(demoFile("valid_credential.json") + demoFile("forged_credential.json")));
   const validPayload = (await db.from("credentials").select("payload").eq("record_id", "SUTRA-DEMO-VALID").single()).data!.payload;
   check("genuine JSON shows VALID", (await call(null, "/api/app/public/verify-json", validPayload)).json?.verdict === "VALID");
   const sample = await call(null, "/api/app/public/forged-sample");
