@@ -48,7 +48,7 @@
 - The Next 15 middleware still calls `getUser` on each request, because it refreshes the session; `cache()` removes only the repeats within rendering.
 - `demo:reset` ran three times rather than once: twice as a clean starting point for the final checks and once at the very end, since tests that write data need it and the brief asks for the planted state at the finish.
 - `clean_upload.csv` on B.Tech CSE cannot reach 0 blocking errors, because 12 rows do not fit in CSE's 2 free seats and rule 3 forbids changing validation or planted data. It has 0 eligibility errors there and 0 errors of any kind on ECE, which is what it was generated for.
-- AI default checked 2026-11-01: `gemini-3.8-flash` is listed as stable with a free tier and shown in Google's OpenAI-compatible examples. It is set in `.env.example`.
+- AI default is `gemini-3.5-flash-lite`, chosen 2026-11-02 by testing. `gemini-3.8-flash` is the docs' free-tier stable model, but it missed the brief's 4-second limit (no answer in 30 s, or 503), and the limit was kept. The lite model's free-tier status comes from it working on this key, not from the pricing page.
 - No Groq default is set: Groq's docs list `llama-3.1-8b-instant` as a production instant model but tag it Enterprise, and do not state free-plan availability, so `AI_MODEL` must be chosen from Groq's list.
 - `AI_PROVIDER` must now be set to use AI, so an `ANTHROPIC_API_KEY` alone stays in offline mode, as the brief's default of `none` requires.
 - A rate limit (429) falls back at once without the retry; timeouts, network errors and 5xx get the one retry.

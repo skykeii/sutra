@@ -82,7 +82,7 @@ Try these by hand before presenting:
 - MFA enrolment with an authenticator app, and `DEMO_MODE=false` enforcement
 - Hitting the login, OTP and verifier rate limits, and the bulk-lookup alert
 - Swagger "Try it out" with a real key
-- A real AI provider, once you add a key
+- The `AI: gemini` label on screen, once you set `AI_PROVIDER` and `AI_MODEL`
 
 ### Cut
 

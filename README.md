@@ -102,13 +102,13 @@ AI is optional. With nothing set, Ask the Data and the fraud page run in offline
 
    ```bash
    AI_PROVIDER=gemini
-   AI_MODEL=gemini-3.8-flash
+   AI_MODEL=gemini-3.5-flash-lite
    GEMINI_API_KEY=your-key
    ```
 
 3. Restart the app, or redeploy on Vercel.
 
-`AI_PROVIDER=anthropic` with `ANTHROPIC_API_KEY` also works. Ask the Data and the fraud page show `AI: <provider>` when the model answered and `AI: offline mode` when the fallback did. Any error, timeout, rate limit or invalid reply falls back silently. The model only ever chooses from the approved query catalog and sees totals, never student data.
+Use a fast model: replies must arrive within 4 seconds. On 2026-11-02, `gemini-3.8-flash` missed this (no answer in 30 s, or 503 high demand) and `gemini-3.5-flash-lite` met it. `AI_PROVIDER=anthropic` with `ANTHROPIC_API_KEY` also works. Ask the Data and the fraud page show `AI: <provider>` when the model answered and `AI: offline mode` when the fallback did. Any error, timeout, rate limit or invalid reply falls back silently. The model only ever chooses from the approved query catalog and sees totals, never student data.
 
 ## Deployment region
 
