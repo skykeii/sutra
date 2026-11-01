@@ -6,6 +6,7 @@ import { verifyCredential, type SignedCredential } from "@/lib/credentials/vc";
 import { hmacMatch, verifyPayload } from "@/lib/crypto";
 import { DEMO_PASSWORD, demoEmail } from "@/lib/demo-accounts";
 import { adminClient, loadEnv, needEnv, ROOT, runScript } from "./lib/run";
+import { ELIGIBILITY_DEFAULTS } from "./seed/catalog";
 
 let failures = 0;
 function check(label: string, ok: boolean, detail = "") {
@@ -54,6 +55,16 @@ async function main() {
   const programs = (await db.from("programs").select("id, name")).data ?? [];
   const validity = await Promise.all(programs.map((p) => db.rpc("seat_matrix_valid", { p_program: p.id })));
   check("Every matrix sums to approved intake", validity.every((r) => r.data === true), `${validity.filter((r) => r.data === true).length}/${programs.length}`);
+
+  console.log("\nEditable config and planted fill");
+  const rules = (await db.from("eligibility_rules").select("level, rule_type, program_id")).data ?? [];
+  const expectedRules = new Set(ELIGIBILITY_DEFAULTS.map((r) => `${r.level}:${r.rule_type}`));
+  check("Only the default eligibility rules exist", rules.length === expectedRules.size && rules.every((r) => !r.program_id && expectedRules.has(`${r.level}:${r.rule_type}`)), `${rules.length} of ${expectedRules.size}`);
+  const deccanPrograms = (await db.from("v_intake_status").select("program_name, enrolled_regular, approved").eq("institution_name", "Deccan Institute of Technology")).data ?? [];
+  for (const [match, enrolled, approved] of [["(CSE)", 58, 60], ["Electronics", 42, 60], ["Diploma in Mechanical", 24, 30]] as const) {
+    const row = deccanPrograms.find((p) => p.program_name.includes(match));
+    check(`Deccan ${match} is ${enrolled} of ${approved}`, row?.enrolled_regular === enrolled && row?.approved === approved, `${row?.enrolled_regular}/${row?.approved}`);
+  }
 
   console.log("\nPlanted scenarios");
   const intake = (await db.from("v_intake_status").select("*").eq("institution_name", "Deccan Institute of Technology").ilike("program_name", "%CSE%").single()).data;
