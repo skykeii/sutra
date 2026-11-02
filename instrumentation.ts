@@ -1,5 +1,7 @@
 export async function register() {
-  if (process.env.NEXT_RUNTIME !== "nodejs") return;
-  const { warmUpModel } = await import("@/lib/ai/provider");
-  warmUpModel();
+  // Written as a positive check so the import is left out of the edge bundle.
+  if (process.env.NEXT_RUNTIME === "nodejs") {
+    const { warmUpModel } = await import("@/lib/ai/provider");
+    warmUpModel();
+  }
 }
