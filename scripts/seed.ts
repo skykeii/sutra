@@ -50,7 +50,7 @@ async function main() {
   needEnv("FIELD_ENC_KEY");
   needEnv("ED25519_PRIVATE_KEY_PEM");
   // Signed into each credential, so it must be the public address, not whichever machine ran the seed.
-  const publicUrl = process.env.DEMO_PUBLIC_URL ?? "https://sutra-ochre.vercel.app";
+  const publicUrl = process.env.DEMO_PUBLIC_URL ?? "https://sutra.teentechindia.com";
   const db = adminClient();
 
   const probe = await db.from("universities").select("id", { head: true, count: "exact" });
