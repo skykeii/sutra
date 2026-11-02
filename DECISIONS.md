@@ -60,3 +60,7 @@
 - Webhook calls carry `X-Webhook-Id` so the sink can find the secret for the signature.
 - `serve.mjs` is a small custom server that passes the socket address to the app, because Next hides it from routes and the brief trusts `CF-Connecting-IP` only from loopback. `next start` and Vercel keep the platform's `X-Forwarded-For`.
 - `npm run e2e` writes data, so a second run needs a reset first; the reports section fails on stale data otherwise. This is why `demo:reset` runs before the final check run as well as at the very end.
+- `npm run check:final` holds the safety checks that create throwaway users, separate from `e2e`, so a normal e2e run never creates auth users.
+- The tunnel `com.sutra.cloudflared` (token in `~/.cloudflared/sutra-tunnel.token`) already served the domain when the final brief ran, so no new tunnel was made and its files were left where they are, rather than moved under `~/sutra`.
+- The Mac has 8 GB of memory, below the brief's 16 GB, so Ollama was not installed; Gemini is used as the brief's fallback.
+- The full e2e writes data, so the final order is: reset, full checks, then one last reset, followed only by read-only checks.

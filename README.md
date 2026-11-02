@@ -8,6 +8,8 @@ Sutra is an APAAR-based student data platform for AICTE (SIH 2026, PS 26263). In
 
 The APAAR registry, DigiLocker and ePASS connections are simulated and labelled as such. All data is synthetic.
 
+Live demo: <https://sutra.teentechindia.com>. `DEPLOY.md` explains how it is hosted.
+
 ## Setup in 5 steps
 
 You need Node.js 20 or newer and a free Supabase project.
@@ -92,10 +94,29 @@ npm run demo:reset
 | `npm run e2e:ui` | Browser tests with Playwright. Needs the app running and `npx playwright install chromium`, and skips with a message if Chromium is missing. `E2E_ALLOW_WRITES=1` adds the tests that write data |
 | `node scripts/mobile-overflow.mjs` | Checks every signed-in page for sideways scrolling at 375 px |
 | `npm run measure` | Times the slowest signed-in pages against a running app |
+| `npm run serve` | Production server that can see the real visitor behind a tunnel. Set `HOST` and `PORT`, default `127.0.0.1:3100` |
+| `npm run check:final` | Rate limits, MFA, `DEMO_MODE=false` and spot checks, using throwaway accounts it deletes afterwards. Needs a build and the app running |
+| `npm run live-check -- <url>` | Read-only pass or fail table for a public address: pages, login, credentials, headers, timings |
+| `node scripts/screenshots.mjs <folder>` | Saves key pages at desktop and phone width and reports console errors |
 
-## Enabling the free AI provider
+## AI options
 
 AI is optional. With nothing set, Ask the Data and the fraud page run in offline mode, using a keyword matcher and templates.
+
+### On the server, with Ollama
+
+AI runs on the server itself with Ollama, so questions never leave the machine. It needs no key, but a small model wants about 16 GB of memory to answer in time.
+
+```bash
+AI_PROVIDER=ollama
+AI_MODEL=a-model-you-have-pulled
+```
+
+The address defaults to `http://127.0.0.1:11434/v1`; change it with `OLLAMA_BASE_URL`. Replies get 15 seconds, because the first call loads the model; change this with `AI_TIMEOUT_MS`. The server loads the model once at start, without delaying start-up. The code path is covered by unit tests with a mocked server. **It has not yet run against a real Ollama**, because the current host has 8 GB of memory.
+
+### In the cloud, for comparison
+
+The question text leaves the machine, though never student records.
 
 1. Get a key from [Google AI Studio](https://aistudio.google.com/) or the [Groq console](https://console.groq.com/).
 2. Add these to `.env.local` and to your Vercel environment variables. For Groq, use `AI_PROVIDER=groq`, `GROQ_API_KEY` and a model from its current list.
@@ -108,9 +129,11 @@ AI is optional. With nothing set, Ask the Data and the fraud page run in offline
 
 3. Restart the app, or redeploy on Vercel.
 
-Use a fast model: replies must arrive within 4 seconds. On 2026-11-02, `gemini-3.8-flash` missed this (no answer in 30 s, or 503 high demand) and `gemini-3.5-flash-lite` met it. `AI_PROVIDER=anthropic` with `ANTHROPIC_API_KEY` also works. Ask the Data and the fraud page show `AI: <provider>` when the model answered and `AI: offline mode` when the fallback did. Any error, timeout, rate limit or invalid reply falls back silently. The model only ever chooses from the approved query catalog and sees totals, never student data.
+Use a fast model: replies must arrive within 4 seconds, unless you set `AI_TIMEOUT_MS`. On 2026-11-02, `gemini-3.8-flash` missed this (no answer in 30 s, or 503 high demand) and `gemini-3.5-flash-lite` met it. `AI_PROVIDER=anthropic` with `ANTHROPIC_API_KEY` also works. Ask the Data and the fraud page show `AI: <provider>` when the model answered and `AI: offline mode` when the fallback did. Any error, timeout, rate limit or invalid reply falls back silently. The model only ever chooses from the approved query catalog and sees totals, never student data.
 
-## Deployment region
+## Hosting
+
+The live demo runs on a Mac mini behind a Cloudflare tunnel. See `DEPLOY.md`. A Vercel copy also works.
 
 `vercel.json` runs functions in Mumbai (`bom1`), next to the Supabase project. This only takes effect on the deployed site. If your Supabase project is elsewhere, choose the nearest Vercel region.
 
@@ -121,4 +144,14 @@ Use a fast model: replies must arrive within 4 seconds. On 2026-11-02, `gemini-3
 - **Isolated validation.** `validateBatch` is a pure function that gets only the rows and the lookups it is handed, with no database or secrets. It runs in one serverless invocation per request today, and that boundary lets it move into containerised workers at national scale.
 - **AI.** Optional, through one entry point (`lib/ai/provider.ts`). A model only picks from a fixed catalog of approved queries and writes summaries from aggregates. Without a provider, a keyword matcher and templates take over.
 - **Simulated integrations.** `lib/adapters/` holds the APAAR, DigiLocker and ePASS adapters. Each has a one-line note on what the real integration would swap in.
+- **Webhooks.** Addresses must be https and must not resolve to a private, loopback, link-local or CGNAT range, checked at registration and again as each delivery connects. Redirects are not followed. Set `ALLOW_PRIVATE_WEBHOOKS=true` only for local development against `http://localhost`.
+- **Rate limits behind a tunnel.** `serve.mjs` passes the socket address to the app. `CF-Connecting-IP` is trusted only when the connection comes from loopback, so visitors get their own limits and nobody can pick theirs.
 - **Going live.** Set `DEMO_MODE=false` to enforce MFA for AICTE admins, hide demo logins and turn off the tamper controls, and move the anchor to a daily schedule. For production, drop `demo_tamper_audit` and `demo_restore_audit`.
+
+## Known limitations
+
+- APAAR, DigiLocker, ePASS and SMS are simulated, and labelled so on screen.
+- Verifiers paste a QR link or record ID. There is no camera QR scanning.
+- Four early audit entries (seq 446, 447, 501, 502) hold a synthetic APAAR ID in an API path, written before that path was redacted. The log is append-only, so they stay. `npm run smoke` lists them and fails on any new one.
+- `npm audit` reports warnings. `xlsx` has no fix on npm; it parses uploads only in the uploader's own browser. The rest need breaking upgrades, mostly in build tooling.
+- Demo mode shows one-click logins and the shared password by design. Set `DEMO_MODE=false` for anything real.
