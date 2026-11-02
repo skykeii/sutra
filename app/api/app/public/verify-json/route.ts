@@ -1,6 +1,6 @@
-import { clientIp } from "@/lib/client-ip";
 import { NextResponse } from "next/server";
 import { appendAudit } from "@/lib/audit";
+import { clientIp } from "@/lib/client-ip";
 import { checkUploaded } from "@/lib/credentials/service";
 import type { SignedCredential } from "@/lib/credentials/vc";
 import { ApiError, readJson, route } from "@/lib/http";

@@ -1,6 +1,6 @@
-import { clientIp } from "@/lib/client-ip";
 import { NextResponse } from "next/server";
 import { epassAdapter } from "@/lib/adapters/epass";
+import { clientIp } from "@/lib/client-ip";
 import { ApiError, assertSameOrigin, readJson, route } from "@/lib/http";
 import { takeToken } from "@/lib/ratelimit";
 import { scholarshipBody } from "@/lib/scholarship";
