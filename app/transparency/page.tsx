@@ -43,7 +43,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
         <DataTable rows={rows} rowKey={(r) => r.id} empty="No anchors have been published yet." columns={[
           { key: "date", header: "Date" },
           { key: "last_seq", header: "Up to entry", align: "right" },
-          { key: "last_hash", header: "Hash", render: (r) => <code className="break-all text-xs">{r.last_hash}</code> },
+          { key: "last_hash", header: "Hash", render: (r) => <code className="block min-w-64 break-all text-xs">{r.last_hash}</code> },
           { key: "valid", header: "Signature", render: (r) => <StatusBadge status={r.valid ? "Valid" : "Revoked"} title={r.valid ? "Signature verified" : "Signature failed"} /> },
           { key: "created_at", header: "Signed", render: (r) => fmtDateTime(r.created_at) },
         ]} />

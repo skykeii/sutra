@@ -20,6 +20,8 @@
     "e2e": "tsx scripts/e2e.ts",
     "e2e:ui": "node scripts/e2e-ui.mjs",
     "measure": "tsx scripts/measure-pages.ts",
+    "check:final": "tsx scripts/final-checks.ts",
+    "live-check": "tsx scripts/live-check.ts",
     "test": "vitest run"
   },
   "dependencies": {

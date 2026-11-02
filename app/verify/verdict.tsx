@@ -27,7 +27,7 @@ export function VerdictCard({ verdict, fields, reason, note }: { verdict: string
       </div>
       {fields && (
         <dl className="mt-4 grid gap-3 border-t border-current/20 pt-4 sm:grid-cols-2">
-          {([["Institution", fields.institution], ["Program", fields.program], ["Years", fields.years], ["Status", fields.status]] as const).map(([k, v]) => (
+          {([["Institution", fields.institution], ["Program", fields.program], ["Years", fields.years], ["Enrolment status", fields.status]] as const).map(([k, v]) => (
             <div key={k}><dt className="text-xs uppercase tracking-wide opacity-75">{k}</dt><dd className="font-medium">{v}</dd></div>
           ))}
         </dl>
