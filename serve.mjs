@@ -6,6 +6,8 @@ import next from "next";
 process.env.NODE_ENV ??= "production";
 const hostname = process.env.HOST ?? "127.0.0.1";
 const port = Number(process.env.PORT ?? 3100);
+// next start sets this too. Without it, the page fetch after a login redirect tries https against this http port.
+process.env.__NEXT_PRIVATE_ORIGIN = `http://${hostname}:${port}`;
 const app = next({ dev: false, hostname, port });
 const handle = app.getRequestHandler();
 await app.prepare();
