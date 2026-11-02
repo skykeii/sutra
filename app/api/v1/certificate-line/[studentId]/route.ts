@@ -14,15 +14,15 @@ export const GET = route<{ params: Promise<{ studentId: string }> }>(async (req,
   const studentId = z.uuid().parse((await params).studentId);
   const admin = createAdminSupabase();
   const { data: colleges } = await admin.from("institutions").select("id").eq("university_id", owner.universityId);
-  const { data: enrolment } = await admin
+  // A lateral entrant also has an earlier diploma enrolment, so every enrolment is checked for a credential.
+  const { data: enrolments } = await admin
     .from("enrolments")
     .select("id, students(apaar_id_enc), credentials(record_id, status)")
     .eq("student_id", studentId)
-    .in("institution_id", (colleges ?? []).map((c) => c.id))
-    .limit(1)
-    .maybeSingle();
+    .in("institution_id", (colleges ?? []).map((c) => c.id));
+  const enrolment = enrolments?.[0];
   if (!enrolment) throw new ApiError(404, "NOT_FOUND", "That student is not at one of your affiliated colleges.");
-  const credential = (enrolment.credentials as unknown as { record_id: string; status: string }[]).find((c) => c.status === "Valid");
+  const credential = enrolments.flatMap((e) => e.credentials as unknown as { record_id: string; status: string }[]).find((c) => c.status === "Valid");
   await appendAudit(admin, { actorRole: "api_key", action: "certificate.line", entity: "student", entityId: studentId });
   return NextResponse.json({
     line: formatApaarLine(decryptField((enrolment.students as unknown as { apaar_id_enc: string }).apaar_id_enc)),

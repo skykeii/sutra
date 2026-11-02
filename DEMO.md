@@ -51,6 +51,7 @@ Also on `/portal-demo`: **Sneha** gets a verified answer with minimal fields, **
 - Maker-checker: propose as `aicte.admin`, approve as `aicte.admin2`. One intake change is already waiting at **Approvals**.
 - After Scenario 1 the Deccan college has an open OVER_QUOTA alert, so its students are denied scholarships until AICTE resolves it. `npm run demo:reset` clears this.
 - A student's consent code lasts 5 minutes, and each student can request 5 codes an hour.
+- Ask the Data takes about 5 seconds per question on Gemini, sometimes up to 13. Ask one at a time: quick bursts hit the free-tier limit, and answers then come from the offline matcher, still correct, labelled `AI: offline mode`.
 
 ## Acceptance checklist results
 

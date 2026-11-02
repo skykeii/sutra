@@ -38,6 +38,7 @@ describe("webhook addresses", () => {
   });
 
   it("allows http://localhost only with the development switch on", async () => {
+    vi.stubEnv("ALLOW_PRIVATE_WEBHOOKS", "");
     expect(await webhookUrlProblem("http://localhost:3000/x", publicHost)).toMatch(/https/);
     vi.stubEnv("ALLOW_PRIVATE_WEBHOOKS", "true");
     expect(await webhookUrlProblem("http://localhost:3000/x", publicHost)).toBeNull();
