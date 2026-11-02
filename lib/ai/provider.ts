@@ -3,23 +3,33 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { appendAudit } from "@/lib/audit";
 import { sha256Hex } from "@/lib/crypto";
 
-export type ProviderName = "gemini" | "groq" | "anthropic" | "none";
+export type ProviderName = "gemini" | "groq" | "ollama" | "anthropic" | "none";
+type OpenAiCompatible = "gemini" | "groq" | "ollama";
 
-const OPENAI_COMPATIBLE: Record<"gemini" | "groq", { baseUrl: string; keyEnv: string }> = {
+const CLOUD_ENDPOINTS: Record<"gemini" | "groq", { baseUrl: string; keyEnv: string }> = {
   gemini: { baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai/", keyEnv: "GEMINI_API_KEY" },
   groq: { baseUrl: "https://api.groq.com/openai/v1/", keyEnv: "GROQ_API_KEY" },
 };
 const ANTHROPIC_DEFAULT_MODEL = "claude-sonnet-4-6";
-const TIMEOUT_MS = 4000;
 const CACHE_MS = 60_000;
+const OLLAMA_KEEP_ALIVE = "30m";
+
+const ollamaBaseUrl = () => `${(process.env.OLLAMA_BASE_URL?.trim() || "http://127.0.0.1:11434/v1").replace(/\/+$/, "")}/`;
+
+// Ollama gets longer because its first call has to load the model into memory.
+function timeoutMs(provider: ProviderName): number {
+  const chosen = Number(process.env.AI_TIMEOUT_MS);
+  return chosen > 0 ? chosen : provider === "ollama" ? 15_000 : 4000;
+}
 
 /** Falls back to "none" when nothing is set, or when the chosen provider has no key or no model. */
 export function activeProvider(): ProviderName {
   const chosen = process.env.AI_PROVIDER?.trim().toLowerCase();
   if (chosen === "anthropic") return process.env.ANTHROPIC_API_KEY ? "anthropic" : "none";
   if (chosen === "gemini" || chosen === "groq") {
-    return process.env[OPENAI_COMPATIBLE[chosen].keyEnv] && process.env.AI_MODEL?.trim() ? chosen : "none";
+    return process.env[CLOUD_ENDPOINTS[chosen].keyEnv] && process.env.AI_MODEL?.trim() ? chosen : "none";
   }
+  if (chosen === "ollama") return process.env.AI_MODEL?.trim() ? "ollama" : "none";
   return "none";
 }
 
@@ -44,16 +54,18 @@ export interface AiCall {
 
 class Retryable extends Error {}
 
-async function openAiCompatible(provider: "gemini" | "groq", call: AiCall): Promise<string> {
-  const { baseUrl, keyEnv } = OPENAI_COMPATIBLE[provider];
+async function openAiCompatible(provider: OpenAiCompatible, call: AiCall): Promise<string> {
+  const baseUrl = provider === "ollama" ? ollamaBaseUrl() : CLOUD_ENDPOINTS[provider].baseUrl;
+  const auth: Record<string, string> = provider === "ollama" ? {} : { Authorization: `Bearer ${process.env[CLOUD_ENDPOINTS[provider].keyEnv]}` };
   let res: Response;
   try {
     res = await fetch(`${baseUrl}chat/completions`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env[keyEnv]}` },
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+      headers: { "Content-Type": "application/json", ...auth },
+      signal: AbortSignal.timeout(timeoutMs(provider)),
       body: JSON.stringify({
         model: process.env.AI_MODEL!.trim(),
+        ...(provider === "ollama" ? { keep_alive: OLLAMA_KEEP_ALIVE } : {}),
         max_tokens: call.maxTokens,
         messages: [{ role: "system", content: `${call.system}\n\n${DATA_NOT_INSTRUCTIONS}` }, { role: "user", content: call.user }],
         ...(call.schema ? { response_format: { type: "json_object" } } : {}),
@@ -72,7 +84,7 @@ async function openAiCompatible(provider: "gemini" | "groq", call: AiCall): Prom
 }
 
 async function anthropic(call: AiCall): Promise<string> {
-  const response = await new Anthropic({ timeout: TIMEOUT_MS, maxRetries: 0 }).messages.create({
+  const response = await new Anthropic({ timeout: timeoutMs("anthropic"), maxRetries: 0 }).messages.create({
     model: process.env.AI_MODEL?.trim() || ANTHROPIC_DEFAULT_MODEL,
     max_tokens: call.maxTokens,
     system: `${call.system}\n\n${DATA_NOT_INSTRUCTIONS}`,
@@ -94,7 +106,7 @@ export function resetAiCache() {
 }
 
 async function attempt(provider: ProviderName, call: AiCall): Promise<string> {
-  const once = () => (provider === "anthropic" ? anthropic(call) : openAiCompatible(provider as "gemini" | "groq", call));
+  const once = () => (provider === "anthropic" ? anthropic(call) : openAiCompatible(provider as OpenAiCompatible, call));
   try {
     return await once();
   } catch (error) {
@@ -142,4 +154,15 @@ export async function callModel(admin: SupabaseClient, call: AiCall): Promise<st
   } finally {
     inFlight.delete(key);
   }
+}
+
+/** Loads the local model once at server start, so the first officer does not wait for it. Never blocks startup, and its result does not matter. */
+export function warmUpModel(): void {
+  if (activeProvider() !== "ollama") return;
+  void fetch(`${ollamaBaseUrl()}chat/completions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    signal: AbortSignal.timeout(120_000),
+    body: JSON.stringify({ model: process.env.AI_MODEL!.trim(), keep_alive: OLLAMA_KEEP_ALIVE, max_tokens: 1, messages: [{ role: "user", content: "ok" }] }),
+  }).catch(() => undefined);
 }
