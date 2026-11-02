@@ -55,3 +55,8 @@
 - A failed model call stops further calls for that request or detection run, so an outage cannot stack up timeouts.
 - `explained_by` on `fraud_clusters` records who wrote each explanation, for the fraud page label.
 - Seeded credentials sign in `DEMO_PUBLIC_URL`, defaulting to the live demo, because `valid_credential.json` must not mention localhost. The Fake QR test button still changes the program field, since its on-screen text describes that.
+- The webhook sink records nothing itself: the sender already writes status and success to `webhook_deliveries`, and a second row from the sink would double-count; the payload is dropped.
+- Webhook deliveries use `node:https` with a lookup that checks each resolved address as the connection opens, because a check before `fetch` could be beaten by a hostname re-resolving to a private address.
+- Webhook calls carry `X-Webhook-Id` so the sink can find the secret for the signature.
+- `serve.mjs` is a small custom server that passes the socket address to the app, because Next hides it from routes and the brief trusts `CF-Connecting-IP` only from loopback. `next start` and Vercel keep the platform's `X-Forwarded-For`.
+- `npm run e2e` writes data, so a second run needs a reset first; the reports section fails on stale data otherwise. This is why `demo:reset` runs before the final check run as well as at the very end.

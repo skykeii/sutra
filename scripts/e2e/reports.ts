@@ -94,6 +94,23 @@ export async function reports() {
   check("key can be revoked", (await call("admin.deccan", "/api/app/keys", { action: "revoke", id: revoke.data!.id })).status === 200);
   check("revoked key stops working", (await call(null, `/api/v1/programs/${deccanEce}/intake-status`, undefined, header(instKey))).status === 401);
 
-  const hook = await call("admin.deccan", "/api/app/webhooks", { action: "create", url: "http://localhost:3000/api/demo/webhook-sink", events: ["over_intake"] });
+  const hook = await call("admin.deccan", "/api/app/webhooks", { action: "create", url: "https://example.com/sutra-e2e", events: ["over_intake"] });
   check("webhook registered, secret shown once", !!hook.json?.secret);
+  for (const url of ["https://127.0.0.1/x", "https://192.168.1.1/x", "http://example.com/x"]) {
+    const refused = await call("admin.deccan", "/api/app/webhooks", { action: "create", url, events: ["over_intake"] });
+    check(`webhook address ${url} is refused`, refused.status === 400 && refused.json?.error?.code === "BAD_URL", refused.json?.error?.message);
+  }
+  check("the sink refuses an unsigned call", (await call(null, "/api/demo/webhook-sink", { test: true })).status === 401);
+  check("the sink refuses a large body", (await call(null, "/api/demo/webhook-sink", { pad: "x".repeat(17_000) })).status === 413);
+  // The server must run with ALLOW_PRIVATE_WEBHOOKS=true to deliver to itself over http, so only local runs do this.
+  if (process.env.ALLOW_PRIVATE_WEBHOOKS === "true") {
+    const base = process.env.E2E_BASE_URL ?? "http://localhost:3000";
+    const local = await call("admin.deccan", "/api/app/webhooks", { action: "create", url: `${base}/api/demo/webhook-sink`, events: ["credential_revoked"] });
+    check("a sink webhook registers", !!local.json?.secret, JSON.stringify(local.json?.error));
+    const { data: row } = await db.from("webhooks").select("id").eq("url", `${base}/api/demo/webhook-sink`).eq("seeded", false).limit(1).single();
+    check("a test delivery is accepted", (await call("admin.deccan", "/api/app/webhooks", { action: "test", id: row!.id })).status === 200);
+    const { data: delivery } = await db.from("webhook_deliveries").select("ok, status_code").eq("webhook_id", row!.id).order("created_at", { ascending: false }).limit(1).single();
+    check("a signed delivery to the sink is recorded as a success", delivery?.ok === true && delivery.status_code === 200, JSON.stringify(delivery));
+    check("removing the test webhook works", (await call("admin.deccan", "/api/app/webhooks", { action: "delete", id: row!.id })).status === 200);
+  }
 }

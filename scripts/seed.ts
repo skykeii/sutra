@@ -49,7 +49,6 @@ async function main() {
   needEnv("HMAC_MATCH_KEY");
   needEnv("FIELD_ENC_KEY");
   needEnv("ED25519_PRIVATE_KEY_PEM");
-  const baseUrl = process.env.APP_BASE_URL ?? "http://localhost:3000";
   // Signed into each credential, so it must be the public address, not whichever machine ran the seed.
   const publicUrl = process.env.DEMO_PUBLIC_URL ?? "https://sutra-ochre.vercel.app";
   const db = adminClient();
@@ -748,7 +747,7 @@ async function main() {
   await upsert("simulated_sms", [{ id: uid("sms", "welcome-1"), student_id: studentOf("900000000001").id, message: "Sutra: your enrolment record has been verified.", created_at: daysAgo(10) }]);
 
   // Deccan's webhook points at the app's own demo sink, so scenario 1 shows a real signed delivery.
-  await upsert("webhooks", [{ id: uid("webhook", "deccan"), owner_id: deccanCse.instId, url: `${baseUrl}/api/demo/webhook-sink`, events: ["over_intake", "over_quota", "cross_match", "marks_mismatch", "credential_revoked"], secret_enc: encryptField(sha256Hex(uid("webhook-secret", "deccan"))), seeded: true }]);
+  await upsert("webhooks", [{ id: uid("webhook", "deccan"), owner_id: deccanCse.instId, url: `${publicUrl}/api/demo/webhook-sink`, events: ["over_intake", "over_quota", "cross_match", "marks_mismatch", "credential_revoked"], secret_enc: encryptField(sha256Hex(uid("webhook-secret", "deccan"))), seeded: true }]);
   await upsert("approvals", [{ id: uid("approval", "intake-demo"), action_type: "CHANGE_INTAKE", payload: { program_id: programOf("kaveri", "CSE").id, program_name: "B.Tech Computer Science & Engineering (CSE)", institution: "Kaveri College of Engineering", new_intake: 40, reason: "Additional lab capacity inspected and approved." }, requested_by: adminId, status: "Pending", approved_by: null, created_at: daysAgo(2), seeded: true }]);
 
   // ---------- Scholarship API key: printed once, only when first created ----------

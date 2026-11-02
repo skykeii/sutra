@@ -1,3 +1,4 @@
+import { clientIp } from "@/lib/client-ip";
 import { NextResponse } from "next/server";
 import { epassAdapter } from "@/lib/adapters/epass";
 import { ApiError, assertSameOrigin, readJson, route } from "@/lib/http";
@@ -9,7 +10,7 @@ import { createAdminSupabase } from "@/lib/supabase/admin";
 export const POST = route(async (req) => {
   assertSameOrigin(req);
   if (process.env.DEMO_MODE !== "true") throw new ApiError(404, "NOT_FOUND", "Not found.");
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "local";
+  const ip = clientIp(req.headers);
   if (!(await takeToken(`portal-demo:${ip}`, 60, 1))) throw new ApiError(429, "RATE_LIMITED", "Too many requests. Please slow down.");
   const input = scholarshipBody.parse(await readJson(req));
   const admin = createAdminSupabase();

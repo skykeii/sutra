@@ -6,7 +6,8 @@ import { apiProfile } from "@/lib/auth/api";
 import { encryptField } from "@/lib/crypto";
 import { ApiError, readJson, route } from "@/lib/http";
 import { createAdminSupabase } from "@/lib/supabase/admin";
-import { fireWebhook, isAllowedWebhookUrl, WEBHOOK_EVENTS } from "@/lib/webhooks";
+import { webhookUrlProblem } from "@/lib/webhook-guard";
+import { fireWebhook, WEBHOOK_EVENTS } from "@/lib/webhooks";
 
 const body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("create"), url: z.url().max(500), events: z.array(z.enum(WEBHOOK_EVENTS)).min(1) }),
@@ -21,7 +22,8 @@ export const POST = route(async (req) => {
   const owner = profile.institutionId!;
   const actor = { actorId: profile.userId, actorRole: profile.role };
   if (input.action === "create") {
-    if (!isAllowedWebhookUrl(input.url)) throw new ApiError(400, "BAD_URL", "Webhook addresses must use https and cannot point at private networks.");
+    const problem = await webhookUrlProblem(input.url);
+    if (problem) throw new ApiError(400, "BAD_URL", problem);
     const secret = randomBytes(24).toString("hex");
     const { data, error } = await admin.from("webhooks").insert({ owner_id: owner, url: input.url, events: input.events, secret_enc: encryptField(secret) }).select("id").single();
     if (error) throw new Error(error.message);

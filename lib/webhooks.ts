@@ -1,20 +1,36 @@
-import { createHmac } from "node:crypto";
+import { request as httpRequest } from "node:http";
+import { request as httpsRequest } from "node:https";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { decryptField } from "@/lib/crypto";
 import type { WebhookEvent } from "@/lib/webhook-events";
+import { publicOnlyLookup, signWebhook, webhookUrlProblem } from "@/lib/webhook-guard";
 
 export { WEBHOOK_EVENTS, type WebhookEvent } from "@/lib/webhook-events";
 
-// Blocks the obvious internal targets; localhost stays allowed in demo mode for the built-in sink.
-export function isAllowedWebhookUrl(url: string): boolean {
-  try {
-    const u = new URL(url);
-    const internal = /^(localhost|127\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.|\[::1\]|0\.)/.test(u.hostname);
-    if (process.env.DEMO_MODE === "true") return u.protocol === "https:" || u.protocol === "http:";
-    return u.protocol === "https:" && !internal;
-  } catch {
-    return false;
-  }
+const DELIVERY_TIMEOUT_MS = 5000;
+
+// No redirects are followed, and the response body is never read, which caps its size at nothing.
+function post(url: string, headers: Record<string, string>, body: string): Promise<number> {
+  const target = new URL(url);
+  const send = target.protocol === "https:" ? httpsRequest : httpRequest;
+  return new Promise((resolve, reject) => {
+    const request = send(
+      target,
+      {
+        method: "POST",
+        headers: { ...headers, "Content-Length": String(Buffer.byteLength(body)) },
+        // Plain http only ever passes the guard for the local development sink.
+        lookup: target.protocol === "https:" ? publicOnlyLookup : undefined,
+        signal: AbortSignal.timeout(DELIVERY_TIMEOUT_MS),
+      },
+      (response) => {
+        resolve(response.statusCode ?? 0);
+        response.destroy();
+      },
+    );
+    request.on("error", reject);
+    request.end(body);
+  });
 }
 
 export async function fireWebhook(admin: SupabaseClient, institutionId: string | null, event: WebhookEvent, payload: Record<string, unknown>): Promise<void> {
@@ -26,16 +42,10 @@ export async function fireWebhook(admin: SupabaseClient, institutionId: string |
       let status: number | null = null;
       let ok = false;
       try {
-        const signature = createHmac("sha256", decryptField(hook.secret_enc)).update(body).digest("hex");
-        const res = await fetch(hook.url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Signature": signature, "X-Sutra-Event": event },
-          body,
-          redirect: "error",
-          signal: AbortSignal.timeout(4000),
-        });
-        status = res.status;
-        ok = res.ok;
+        if (!(await webhookUrlProblem(hook.url))) {
+          status = await post(hook.url, { "Content-Type": "application/json", "X-Signature": signWebhook(decryptField(hook.secret_enc), body), "X-Sutra-Event": event, "X-Webhook-Id": hook.id }, body);
+          ok = status >= 200 && status < 300;
+        }
       } catch {
         ok = false;
       }

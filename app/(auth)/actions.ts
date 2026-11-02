@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { appendAudit } from "@/lib/audit";
+import { clientIp } from "@/lib/client-ip";
 import { sha256Hex } from "@/lib/crypto";
 import { LIMITS, takeToken } from "@/lib/ratelimit";
 import { ROLE_HOME, type AppRole } from "@/lib/auth/roles";
@@ -24,7 +25,7 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
   const parsed = credentials.safeParse({ email: formData.get("email"), password: formData.get("password") });
   if (!parsed.success) return { error: "Enter a valid email and password." };
 
-  const ip = (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() ?? "local";
+  const ip = clientIp(await headers());
   if (!(await takeToken(`login:${ip}:${sha256Hex(parsed.data.email.toLowerCase()).slice(0, 16)}`, ...LIMITS.login))) {
     return { error: "Too many sign-in attempts. Please wait a minute and try again." };
   }

@@ -1,3 +1,4 @@
+import { clientIp } from "@/lib/client-ip";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { appendAudit } from "@/lib/audit";
@@ -15,7 +16,7 @@ const body = z.object({
 
 export const POST = route(async (req) => {
   assertSameOrigin(req);
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "local";
+  const ip = clientIp(req.headers);
   if (!(await takeToken(`signup:${ip}`, 5, 5 / 3600))) throw new ApiError(429, "RATE_LIMITED", "Too many sign-ups from here. Please try later.");
   const input = body.parse(await readJson(req));
   const admin = createAdminSupabase();
