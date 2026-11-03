@@ -18,6 +18,7 @@ async function main() {
   await clear("simulated_digilocker", everything);
   await clear("marksheet_submissions", everything);
   await clear("notifications", everything);
+  await clear("simulated_sms", everything);
   await clear("webhook_deliveries", everything);
   await clear("access_log", notSeeded);
   await clear("scholarship_requests", notSeeded);

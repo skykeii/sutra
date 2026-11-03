@@ -323,7 +323,8 @@ export function UploadWizard({ programs }: { programs: ProgramOption[] }) {
           <CardHeader><CardTitle>Upload submitted</CardTitle><CardDescription>{result.created} new records and {result.updated} updates were saved. {result.blocked} rows were held back.</CardDescription></CardHeader>
           <CardContent className="flex flex-wrap gap-2">
             <Button asChild><Link href={`/institution/history/${result.batchId}`}>See batch results</Link></Button>
-            <Button asChild variant="outline"><Link href="/institution">Back to dashboard</Link></Button>
+            {/* A full page load: a client-side navigation here kept showing the seat counts from before the submit. */}
+            <Button variant="outline" onClick={() => window.location.assign("/institution")}>Back to dashboard</Button>
           </CardContent>
         </Card>
       )}
