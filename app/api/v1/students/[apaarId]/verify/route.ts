@@ -28,8 +28,9 @@ export const GET = route<{ params: Promise<{ apaarId: string }> }>(async (req, {
   const best = list.find((e) => e.validation_status === "Verified" && e.enrolment_status === "Active") ?? list[0];
   if (!best) throw new ApiError(404, "NO_RECORD", "No enrolment was found for this student.");
   const result = minimalResult(consent.scope, best);
-  await admin.from("consents").update({ consumed_at: new Date().toISOString(), receipt: signedReceipt(token, org.name, consent.purpose, result) }).eq("id", token);
-  await admin.from("access_log").insert({ grantee: org.name, student_id: consent.student_id, fields_returned: Object.keys(result), purpose: consent.purpose });
+  const { data: consumed, error } = await admin.rpc("consume_consent", { p_consent: token, p_who: null, p_grantee: org.name, p_fields: Object.keys(result), p_receipt: signedReceipt(token, org.name, consent.purpose, result) });
+  if (error) throw new Error(error.message);
+  if (!consumed) throw new ApiError(403, "NO_CONSENT", "This consent has already been used.");
   await appendAudit(admin, { actorRole: "api_key", action: "verify.view", entity: "consent", entityId: token, meta: { fields: Object.keys(result) } });
   return NextResponse.json(result);
 });

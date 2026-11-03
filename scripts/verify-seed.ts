@@ -154,6 +154,14 @@ async function main() {
   const aicte = await asUser("aicte.admin");
   check("AICTE can read cross-matches", ((await aicte.from("cross_matches").select("id")).data?.length ?? 0) >= 1);
 
+  const demo = (await db.from("students").select("id").eq("apaar_hash", hmacMatch("900000000010")).single()).data!;
+  const { data: demoUsed } = await db.from("consents").select("id").eq("student_id", demo.id).or("approved_at.not.is.null,consumed_at.not.is.null,receipt.not.is.null");
+  check("The demo student (900000000010) has no approved, used or receipted consent", (demoUsed ?? []).length === 0, `${demoUsed?.length} found`);
+  const { data: seededConsents } = await db.from("consents").select("id, consumed_at, receipt").eq("seeded", true);
+  const { data: seededAccess } = await db.from("access_log").select("consent_id").eq("seeded", true);
+  const logged = new Set((seededAccess ?? []).map((a) => a.consent_id));
+  check("Every seeded used consent has its access entry", (seededConsents ?? []).filter((c) => c.consumed_at).every((c) => logged.has(c.id)));
+  check("No seeded consent keeps a receipt from an earlier run", (seededConsents ?? []).every((c) => !c.receipt));
   console.log(failures ? `\n✖ ${failures} check(s) failed` : "\n✔ All seed checks passed");
   if (failures) process.exit(1);
 }

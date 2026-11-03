@@ -63,4 +63,7 @@
 - `npm run check:final` holds the safety checks that create throwaway users, separate from `e2e`, so a normal e2e run never creates auth users.
 - The tunnel `com.sutra.cloudflared` (token in `~/.cloudflared/sutra-tunnel.token`) already served the domain when the final brief ran, so no new tunnel was made and its files were left where they are, rather than moved under `~/sutra`.
 - The Mac has 8 GB of memory, below the brief's 16 GB, so Ollama was not installed; Gemini is used as the brief's fallback.
+- `app/(portal)/loading.tsx` was removed. With a loading boundary above a page, `router.refresh()` responses carried new data but the screen kept the old render, so live pages never updated; without it, every refresh in the trace reached the screen. Navigation now keeps the old page until the new one is ready.
+- A one-time view consumes the consent and writes `access_log` in one SQL function, which also makes a second concurrent view fail cleanly. A second view returns 409; the receipt PDF keeps the signed copy.
+- An employer request reuses a consent only if it has the same purpose, is still pending and is under 10 minutes old.
 - The full e2e writes data, so the final order is: reset, full checks, then one last reset, followed only by read-only checks.

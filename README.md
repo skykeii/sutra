@@ -139,6 +139,7 @@ The live demo runs on a Mac mini behind a Cloudflare tunnel. See `DEPLOY.md`. A 
 
 ## Design notes
 
+- **Consent.** Every employer request is a new consent that the student approves with a one-time code. The result can be viewed once: using the consent and recording the access happen in one database transaction (`consume_consent`), and the student sees each access live under **Who accessed my record**.
 - **Security.** Row-level security on every table, deny by default. Keyed HMAC-SHA256 for all cross-institution matching. AES-256-GCM for mobile, email, passport and APAAR ID. Ed25519 for credentials, receipts, result batches and audit anchors. Two-person approval for intake changes, revocations and verifier approvals. See `DECISIONS.md`.
 - **Tamper-evident audit.** `append_audit()` hash-chains every entry under an advisory lock; triggers block update, delete and truncate. Daily signed anchors are public at `/transparency`.
 - **Isolated validation.** `validateBatch` is a pure function that gets only the rows and the lookups it is handed, with no database or secrets. It runs in one serverless invocation per request today, and that boundary lets it move into containerised workers at national scale.

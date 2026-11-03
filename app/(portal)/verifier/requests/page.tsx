@@ -27,7 +27,7 @@ export default async function Page() {
         { key: "id", header: "Consent ID", render: (r) => <code className="break-all text-xs">{r.id}</code> },
         { key: "created_at", header: "Asked", render: (r) => fmtDateTime(r.created_at) },
         { key: "state", header: "Status", render: (r) => <StatusBadge status={r.state} /> },
-        { key: "result", header: "Result", render: (r) => <ViewResult id={r.id} state={r.state} initial={r.result} /> },
+        { key: "result", header: "Result", render: (r) => <ViewResult id={r.id} state={r.state} initial={r.state === "Viewed" ? r.result : null} /> },
       ]} />
       <Section title="API keys" description="Use the consent ID as X-Consent-Token with GET /api/v1/students/{apaarId}/verify."><ApiKeyManager keys={(keys ?? []) as KeyRow[]} /></Section>
     </div>

@@ -35,7 +35,9 @@ export const POST = route(async (req) => {
   await appendAudit(admin, { actorId: profile.userId, actorRole: profile.role, action: "verify.lookup", entity: "verifier_org", entityId: org.id, meta: { found: !!studentId } });
   if (!studentId || !apaarHash) throw new ApiError(404, "NO_RECORD", "We have no record for that ID. Check it and try again.");
 
-  const { data: open } = await admin.from("consents").select("id").eq("student_id", studentId).eq("grantee_id", org.id).is("approved_at", null).is("denied_at", null).limit(1).maybeSingle();
+  const recent = new Date(Date.now() - 10 * 60_000).toISOString();
+  const { data: open } = await admin.from("consents").select("id").eq("student_id", studentId).eq("grantee_id", org.id).eq("purpose", input.purpose)
+    .is("approved_at", null).is("denied_at", null).is("revoked_at", null).gte("created_at", recent).order("created_at", { ascending: false }).limit(1).maybeSingle();
   if (open) return NextResponse.json({ consentId: open.id, alreadyPending: true });
   const { data: consent, error } = await admin.from("consents").insert({ student_id: studentId, grantee_type: "verifier_org", grantee_id: org.id, purpose: input.purpose, scope: org.scope }).select("id").single();
   if (error) throw new Error(error.message);

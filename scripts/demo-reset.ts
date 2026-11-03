@@ -19,6 +19,8 @@ async function main() {
   await clear("marksheet_submissions", everything);
   await clear("notifications", everything);
   await clear("simulated_sms", everything);
+  // Rehearsals use up the per-student code limit, so a reset starts the limits afresh too.
+  await clear("rate_limits", (q) => q.not("bucket_key", "is", null));
   await clear("webhook_deliveries", everything);
   await clear("access_log", notSeeded);
   await clear("scholarship_requests", notSeeded);

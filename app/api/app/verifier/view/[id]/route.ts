@@ -13,7 +13,7 @@ export const POST = route<{ params: Promise<{ id: string }> }>(async (req, { par
   const { data: consent } = await admin.from("consents").select("*").eq("id", id).maybeSingle();
   if (!consent || consent.grantee_id !== profile.verifierOrgId) throw new ApiError(404, "NOT_FOUND", "That request was not found.");
   const state = consentState(consent);
-  if (state === "Viewed") return NextResponse.json({ result: consent.receipt?.payload?.result ?? null, alreadyViewed: true });
+  if (state === "Viewed") throw new ApiError(409, "ALREADY_VIEWED", "This result has already been shown once. The receipt PDF keeps a signed copy.");
   if (state !== "Approved") throw new ApiError(403, "NO_CONSENT", state === "Pending" ? "The student has not answered yet." : `This request is ${state.toLowerCase()}.`);
   const { data: org } = await admin.from("verifier_orgs").select("id, name, status").eq("id", consent.grantee_id).single();
   if (org?.status !== "Approved") throw new ApiError(403, "NOT_APPROVED", "AICTE has not approved your organisation.");
@@ -25,8 +25,9 @@ export const POST = route<{ params: Promise<{ id: string }> }>(async (req, { par
   if (!best) throw new ApiError(404, "NO_RECORD", "No enrolment was found for this student.");
   const result = minimalResult(consent.scope, best);
   const receipt = signedReceipt(id, org.name, consent.purpose, result);
-  await admin.from("consents").update({ consumed_at: new Date().toISOString(), receipt }).eq("id", id);
-  await admin.from("access_log").insert({ who: profile.userId, grantee: org.name, student_id: consent.student_id, fields_returned: Object.keys(result), purpose: consent.purpose });
+  const { data: consumed, error } = await admin.rpc("consume_consent", { p_consent: id, p_who: profile.userId, p_grantee: org.name, p_fields: Object.keys(result), p_receipt: receipt });
+  if (error) throw new Error(error.message);
+  if (!consumed) throw new ApiError(409, "ALREADY_VIEWED", "This result has already been shown once. The receipt PDF keeps a signed copy.");
   await appendAudit(admin, { actorId: profile.userId, actorRole: profile.role, action: "verify.view", entity: "consent", entityId: id, meta: { fields: Object.keys(result) } });
-  return NextResponse.json({ result, alreadyViewed: false });
+  return NextResponse.json({ result });
 });

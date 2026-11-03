@@ -30,7 +30,7 @@ export default async function Page() {
   const pending = rows.filter((r) => r.state === "Pending");
   return (
     <div className="space-y-5">
-      <PageHeader title="Access and consents" description="Nobody sees your record without your approval. You can take access back at any time." actions={<LiveRefresh tables={["enrolments"]} />} />
+      <PageHeader title="Access and consents" description="Nobody sees your record without your approval. You can take access back at any time." actions={<LiveRefresh tables={["consents", "access_log"]} />} />
       <div className="grid gap-4 lg:grid-cols-[1fr_22rem]">
         <Section title="Waiting for your answer">
           {pending.length === 0 ? <EmptyState>No requests are waiting for you.</EmptyState> : (
@@ -55,7 +55,7 @@ export default async function Page() {
       <Section title="All requests">
         <DataTable rows={rows} rowKey={(r) => r.id} empty="No requests yet." columns={[
           { key: "name", header: "Organisation" }, { key: "purpose", header: "Purpose" },
-          { key: "state", header: "Status", render: (r) => <StatusBadge status={r.state} /> },
+          { key: "state", header: "Status", render: (r) => r.state === "Viewed" ? <span className="space-y-0.5"><StatusBadge status="Used once" /><span className="block text-xs text-muted-foreground">{fmtDateTime(r.consumed_at)}</span></span> : <StatusBadge status={r.state} /> },
           { key: "expires_at", header: "Access until", render: (r) => fmtDateTime(r.expires_at) },
           { key: "act", header: "Action", render: (r) => r.state === "Approved" ? <ActionButton size="sm" variant="outline" url={`/api/app/student/consents/${r.id}`} body={{ action: "revoke" }}>Take back access</ActionButton> : null },
         ]} />

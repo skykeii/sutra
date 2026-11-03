@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 const STATUS_TONE: Record<string, "green" | "amber" | "red" | "grey" | "blue"> = {
   Verified: "green", Clean: "green", Valid: "green", Approved: "green", Pass: "green", Match: "green", Fulfilled: "green", Submitted: "green", Active: "green", Resolved: "green", Cleared: "green", ConsentGranted: "green", Paid: "green", delivered: "green",
   Flagged: "amber", Warning: "amber", Partial: "amber", Pending: "grey", "Under review": "amber", Acknowledged: "amber", applied: "amber", Withdrawn: "grey", Preview: "grey", PassedOut: "blue", Info: "blue", Simulated: "blue",
-  Error: "red", Revoked: "red", Rejected: "red", Denied: "red", Fail: "red", Detained: "red", Mismatch: "red", Open: "red", Escalated: "red", NotFound: "amber", failed: "red", Expired: "grey",
+  Error: "red", Revoked: "red", Rejected: "red", Denied: "red", Fail: "red", Detained: "red", Mismatch: "red", Open: "red", Escalated: "red", NotFound: "amber", failed: "red", Expired: "grey", "Used once": "blue",
 };
 const TONE_CLASS = {
   green: "bg-emerald-100 text-emerald-900",

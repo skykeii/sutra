@@ -11,7 +11,7 @@ export default async function Page() {
   const { data } = await supabase.from("marksheet_submissions").select("id, semester, claimed_pct, verified_pct, outcome, created_at").order("created_at", { ascending: false }).limit(20);
   return (
     <div className="space-y-5">
-      <PageHeader title="Marksheet check" description="Enter the marks on your marksheet. Sutra compares them with what your university published. It never looks at images of marksheets." />
+      <PageHeader title="Marksheet check" description="This stands in for the marksheet a student uploads to a college or scholarship portal. Sutra never reads the image. It compares the number on the marksheet with the university's signed record." />
       <Section title="Check your marks"><MarksheetForm /></Section>
       <Section title="Your checks">
         <DataTable rows={data ?? []} rowKey={(r) => r.id} empty="You have not checked any marks yet." columns={[

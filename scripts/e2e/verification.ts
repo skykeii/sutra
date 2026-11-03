@@ -47,7 +47,8 @@ export async function verification() {
   const view = await call("verifier.navayuga", `/api/app/verifier/view/${consentId}`, {});
   const fields = Object.keys(view.json?.result ?? {}).sort().join(",");
   check("verifier gets minimal fields only", fields === "institution,program,status,verified,years", fields);
-  check("second view is flagged as already used", (await call("verifier.navayuga", `/api/app/verifier/view/${consentId}`, {})).json?.alreadyViewed === true);
+  const second = await call("verifier.navayuga", `/api/app/verifier/view/${consentId}`, {});
+  check("a second view is refused", second.status === 409 && second.json?.error?.code === "ALREADY_VIEWED", String(second.status));
   const other = await call("verifier.meridian", `/api/app/verifier/view/${consentId}`, {});
   check("another verifier cannot use this consent", other.status === 404, String(other.status));
   const receipt = await call("verifier.navayuga", `/api/app/verifier/receipt/${consentId}`);
